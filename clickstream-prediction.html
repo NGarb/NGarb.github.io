@@ -1,0 +1,176 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/theme/stylesheet/style.min.css">
+
+
+    <link id="pygments-light-theme" rel="stylesheet" type="text/css"
+          href="/theme/pygments/monokai.min.css">
+
+
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/fontawesome.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/brands.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/solid.css">
+
+
+
+
+
+  
+
+
+ 
+
+<meta name="author" content="Nicolle Garber" />
+<meta name="description" content="Introduction to the FailSafe project and the objectives of the Clickstream prediction" />
+<meta name="keywords" content="regression">
+
+
+  <meta property="og:site_name" content="Fail Safe"/>
+  <meta property="og:title" content="Clickstream Prediction: Data Science project 9 of 500"/>
+  <meta property="og:description" content="Introduction to the FailSafe project and the objectives of the Clickstream prediction"/>
+  <meta property="og:locale" content="en_US"/>
+  <meta property="og:url" content="/clickstream-prediction.html"/>
+  <meta property="og:type" content="article"/>
+  <meta property="article:published_time" content="2022-03-04 11:31:00+02:00"/>
+  <meta property="article:modified_time" content="2022-03-04 14:49:00+02:00"/>
+  <meta property="article:author" content="/author/nicolle-garber.html">
+  <meta property="article:section" content="Prediction"/>
+  <meta property="article:tag" content="regression"/>
+  <meta property="og:image" content="images/profile.png">
+
+  <title>Fail Safe &ndash; Clickstream Prediction: Data Science project 9 of 500</title>
+
+</head>
+<body class="light-theme">
+  <aside>
+    <div>
+      <a href="/">
+        <img src="images/profile.png" alt="Data Science Blog" title="Data Science Blog">
+      </a>
+
+      <h1>
+        <a href="/">Data Science Blog</a>
+      </h1>
+
+<p>The FailSafe experiment</p>
+
+
+      <ul class="social">
+          <li>
+            <a  class="sc-linkedin" href="https://www.linkedin.com/in/nicolle-garber" target="_blank">
+              <i class="fab fa-linkedin"></i>
+            </a>
+          </li>
+          <li>
+            <a  class="sc-github" href="https://github.com/NGarb/FailSafe" target="_blank">
+              <i class="fab fa-github"></i>
+            </a>
+          </li>
+          <li>
+            <a  class="sc-medium" href="https://medium.com/@nikigarber" target="_blank">
+              <i class="fab fa-medium"></i>
+            </a>
+          </li>
+      </ul>
+    </div>
+
+  </aside>
+  <main>
+
+
+<article class="single">
+  <header>
+      
+    <h1 id="clickstream-prediction">Clickstream Prediction: Data Science project 9 of 500</h1>
+    <p>
+      Posted on Fri 04 March 2022 in <a href="/category/prediction.html">Prediction</a>
+
+        &#8226; 3 min read
+    </p>
+  </header>
+
+
+  <div>
+    </head><body><p>In my last post I wrote a high-level summary explaining how I would (and did) approach learning Data Science if I had to do it over again. You can find this <a class="reference external" href="/how-to-avoid-information-overload-initial-data-science-learning.html">at this post</a></p>
+<div class="section" id="introduction-to-the-failsafe-experiment">
+<h2>Introduction to the FailSafe experiment</h2>
+<p>In the FailSafe experiment, I'm 'failing' 500 Data Science projects safely. This means I'm not judging myself for anything I know or don't know.
+The thinking behind this is that there's no such thing as failure if the objective is to fail and if you fail at failing then you've succeeded.
+That's kind of the tag-line for this whole thing and its becoming my moto. The aim for all of the projects is quantity over quality, which turns out (for me at least), is a much better way to learn.
+There are many projects, each of which are intended to teach me at least one small thing. My aim is to never 'get stuck'. The opportunity cost of getting stuck on one project is getting practice on a few projects and learning something new each time.
+I've learned more this way than I have at any Data Science job or even MOOC I've been at or taken.</p>
+<p>Each project has objectives which I set out as the thing I'd like to learn. More often than not, I land up learning something completely different. Which is okay!
+I've removed all stigma from getting stuff wrong now so I can just get on with it. Setting an objective really does help to set the tone and direction for the project.
+For example, sometimes I will choose a more simple target to predict because I would like to practice a new technique.
+It was important in this whole process for me to be systematic. For example - I don't do a whole different field with every project.
+Even though I plan to cover most sub-fields within Data Science, it would be haphazard and shallow learning to jump from a Linear Regression Analysis to Computer Vision to Time Series.
+It feels like most things can be formulated as an explore-exploit trade-off and this is no different. I started off with simple prediction modeling and over a few projects I landed up with a Machine Learning pipeline I'm becoming happy with.</p>
+<p>If you're interested in following along, <a class="reference external" href="https://github.com/NGarb/FailSafe">here</a> is the link to the repository on Github.</p>
+</div>
+<div class="section" id="clickstream-prediction">
+<h2>Clickstream Prediction</h2>
+<img alt="Alt text" class="img-fluid" src="/images/TransferWise_Isometric.png"/>
+<p>This dataset is available at the <a class="reference external" href="https://archive.ics.uci.edu/ml/datasets/clickstream+data+for+online+shopping">UCI machine learning repository</a>.
+This is data for the year 2008 for on online store - specifically offering clothing to pregnant women.</p>
+<p>For my previous project, I had worked through the winning Kaggle solution to the Amazon Access challenge. I wanted to incoporate some of my learnings. This forms part of the objectives.
+Here are the points of my objective:</p>
+<ol class="arabic simple">
+<li>Have explanatory modeling as well as performance modeling</li>
+<li>In the performance modeling, I would like to try staking models</li>
+<li>I want to create the polynomial featuresets, the engineered feature sets, the greedy feature selection</li>
+</ol>
+<p>In this series of posts, I will examine the process end to end of the Clickstream prediction modeling process.</p>
+<p>The next post will look at some data exploration.</p>
+</div>
+
+  </div>
+  <div class="tag-cloud">
+    <p>
+      <a href="/tag/regression.html">regression</a>
+    </p>
+  </div>
+
+
+  <div class="neighbors">
+    <a class="btn float-left" href="/how-to-avoid-information-overload-initial-data-science-learning.html" title="How to avoid information overload - initial Data Science learning">
+      <i class="fa fa-angle-left"></i> Previous Post
+    </a>
+  </div>
+
+
+
+</article>
+
+    <footer>
+<p>&copy;  </p>
+<p>
+Built with <a href="http://getpelican.com" target="_blank">Pelican</a> using <a href="http://bit.ly/flex-pelican" target="_blank">Flex</a> theme
+</p>    </footer>
+  </main>
+
+
+
+
+<script type="application/ld+json">
+{
+  "@context" : "http://schema.org",
+  "@type" : "Blog",
+  "name": " Fail Safe ",
+  "url" : "",
+  "image": "images/profile.png",
+  "description": "some description"
+}
+</script>
+
+</body>
+</html>
