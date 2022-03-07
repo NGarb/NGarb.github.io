@@ -1,0 +1,470 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/theme/stylesheet/style.min.css">
+
+
+    <link id="pygments-light-theme" rel="stylesheet" type="text/css"
+          href="/theme/pygments/monokai.min.css">
+
+
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/fontawesome.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/brands.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/solid.css">
+
+
+
+
+
+  
+
+
+ 
+
+<meta name="author" content="Nicolle Garber" />
+<meta name="description" content="Useful method for selection of categorical encoder" />
+<meta name="keywords" content="categorical encoding, regression, xgboost">
+
+
+  <meta property="og:site_name" content="Fail Safe"/>
+  <meta property="og:title" content="Selecting categorical encoding: Clickstream price prediction"/>
+  <meta property="og:description" content="Useful method for selection of categorical encoder"/>
+  <meta property="og:locale" content="en_US"/>
+  <meta property="og:url" content="/categorical_encoding_selection.html"/>
+  <meta property="og:type" content="article"/>
+  <meta property="article:published_time" content="2022-03-07 00:00:00+02:00"/>
+  <meta property="article:modified_time" content=""/>
+  <meta property="article:author" content="/author/nicolle-garber.html">
+  <meta property="article:section" content="regression"/>
+  <meta property="article:tag" content="categorical encoding"/>
+  <meta property="article:tag" content="regression"/>
+  <meta property="article:tag" content="xgboost"/>
+  <meta property="og:image" content="images/profile.png">
+
+  <title>Fail Safe &ndash; Selecting categorical encoding: Clickstream price prediction</title>
+
+</head>
+<body class="light-theme">
+  <aside>
+    <div>
+      <a href="/">
+        <img src="images/profile.png" alt="Data Science Blog" title="Data Science Blog">
+      </a>
+
+      <h1>
+        <a href="/">Data Science Blog</a>
+      </h1>
+
+<p>The FailSafe experiment</p>
+
+
+      <ul class="social">
+          <li>
+            <a  class="sc-linkedin" href="https://www.linkedin.com/in/nicolle-garber" target="_blank">
+              <i class="fab fa-linkedin"></i>
+            </a>
+          </li>
+          <li>
+            <a  class="sc-github" href="https://github.com/NGarb/FailSafe" target="_blank">
+              <i class="fab fa-github"></i>
+            </a>
+          </li>
+          <li>
+            <a  class="sc-medium" href="https://medium.com/@nikigarber" target="_blank">
+              <i class="fab fa-medium"></i>
+            </a>
+          </li>
+      </ul>
+    </div>
+
+  </aside>
+  <main>
+
+
+<article class="single">
+  <header>
+      
+    <h1 id="categorical_encoding_selection">Selecting categorical encoding: Clickstream price prediction</h1>
+    <p>
+      Posted on Mon 07 March 2022 in <a href="/category/regression.html">regression</a>
+
+        &#8226; 4 min read
+    </p>
+  </header>
+
+
+  <div>
+    <body><p>Welcome to the FailSafe experiment series where the tag-line is that <em>there's no such thing as failure if the objective is to fail and if you fail at failing then you've succeeded</em>.
+In this project, I'll be exploring a method of selection for a categorical encoder for the Clickstream prediction project.</p>
+<h2>Dataset</h2>
+<p>As a reminder from the <a href="/clickstream-prediction.html">previous post</a>, project 9 of the series deals with the price prediction of an e-clothing shop based on a few online-shopping attributes. 
+The data and the description can be found at <a href="https://archive.ics.uci.edu/ml/datasets/clickstream+data+for+online+shopping">the UCI repository</a>. 
+For the purposes of this post, it is not too important to look too closely into data EDA and variable descriptions. </p>
+<p>Most variables are already encoded for us - as described in the data description of the project. </p>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [5]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">clothing_data_df</span><span class="o">.</span><span class="n">info</span><span class="p">()</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre><span class="code-line">&lt;class 'pandas.core.frame.DataFrame'&gt;</span>
+<span class="code-line">RangeIndex: 165474 entries, 0 to 165473</span>
+<span class="code-line">Data columns (total 12 columns):</span>
+<span class="code-line"> #   Column                   Non-Null Count   Dtype </span>
+<span class="code-line">---  ------                   --------------   ----- </span>
+<span class="code-line"> 0   month                    165474 non-null  int64 </span>
+<span class="code-line"> 1   day                      165474 non-null  int64 </span>
+<span class="code-line"> 2   order                    165474 non-null  int64 </span>
+<span class="code-line"> 3   country                  165474 non-null  int64 </span>
+<span class="code-line"> 4   session ID               165474 non-null  int64 </span>
+<span class="code-line"> 5   page 1 (main category)   165474 non-null  int64 </span>
+<span class="code-line"> 6   page 2 (clothing model)  165474 non-null  object</span>
+<span class="code-line"> 7   colour                   165474 non-null  int64 </span>
+<span class="code-line"> 8   location                 165474 non-null  int64 </span>
+<span class="code-line"> 9   model photography        165474 non-null  int64 </span>
+<span class="code-line"> 10  price                    165474 non-null  int64 </span>
+<span class="code-line"> 11  page                     165474 non-null  int64 </span>
+<span class="code-line">dtypes: int64(11), object(1)</span>
+<span class="code-line">memory usage: 15.1+ MB</span>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p>As we can see from the output above, there is only one 'object' type variable. I use this as practice. 
+ A disclaimer: some models such as Catboost do not need prior encoding of categorical variables - this method is mostly useful for models which require numerical inputs. </p>
+<h2>Encoder Selection</h2>
+<p>When we want to perform model explanation and interpretation, we typically would want to encode in such a way as to preserve the original structure of the levels as much as possible. 
+For example, the first choice would be a One-Hot encoding as this would retain each feature level as a separate and individual column. 
+This runs into trouble very quickly as soon as the number of levels starts to grow. In our particular example, we have 217 unique clothing model categories. Adding so many columns to our dataset is not very practical and is unlikely to aid in the modeling as the One-Hot encoding would be quite sparse.</p>
+<p>Just as with any choice we can make in Machine Learning, it is best to test the possibilities. 
+We can very simply just loop through various styles of encoding using a an XGBRegressor with default parameters and keep track of the results. 
+My go-to for this is the <a href="http://contrib.scikit-learn.org/category_encoders/">category_encoders</a> library which contains many encoding methods put nicely together in a scikit-learn style of transformers. 
+First, I set up some defitions. The code below detects which features are categorical and which are numeric without having to manually type column names</p>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [ ]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="c1">#identify numeric and categorical features</span></span>
+<span class="code-line"><span class="n">numeric_features</span> <span class="o">=</span> <span class="n">clothing_data_df</span><span class="o">.</span><span class="n">select_dtypes</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">])</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="s1">'price'</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">columns</span></span>
+<span class="code-line"><span class="n">numeric_features</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">categorical_features</span> <span class="o">=</span> <span class="n">clothing_data_df</span><span class="o">.</span><span class="n">select_dtypes</span><span class="p">(</span><span class="n">exclude</span><span class="o">=</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">])</span><span class="o">.</span><span class="n">columns</span></span>
+<span class="code-line"><span class="n">categorical_features</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<p>We do some cute lil data prep: 
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [ ]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="c1">#prep data</span></span>
+<span class="code-line"><span class="n">X</span> <span class="o">=</span> <span class="n">clothing_data_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">'price'</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">y</span> <span class="o">=</span> <span class="n">clothing_data_df</span><span class="p">[</span><span class="s1">'price'</span><span class="p">]</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">y</span><span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<p></p>
+<p>We define a big-ass list of encoders:
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [ ]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="c1">#define encoders</span></span>
+<span class="code-line"><span class="n">encoders</span> <span class="o">=</span> <span class="p">{</span></span>
+<span class="code-line">    <span class="s1">'BackwardDifferenceEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">backward_difference</span><span class="o">.</span><span class="n">BackwardDifferenceEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'BaseNEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">basen</span><span class="o">.</span><span class="n">BaseNEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'BinaryEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">binary</span><span class="o">.</span><span class="n">BinaryEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'CatBoostEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">cat_boost</span><span class="o">.</span><span class="n">CatBoostEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="c1">#'HashingEncoder': ce.hashing.HashingEncoder, takes too long</span></span>
+<span class="code-line">    <span class="s1">'HelmertEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">helmert</span><span class="o">.</span><span class="n">HelmertEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'JamesSteinEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">james_stein</span><span class="o">.</span><span class="n">JamesSteinEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'OneHotEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">one_hot</span><span class="o">.</span><span class="n">OneHotEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'LeaveOneOutEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">leave_one_out</span><span class="o">.</span><span class="n">LeaveOneOutEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'MEstimateEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">m_estimate</span><span class="o">.</span><span class="n">MEstimateEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'OrdinalEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">ordinal</span><span class="o">.</span><span class="n">OrdinalEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'PolynomialEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">polynomial</span><span class="o">.</span><span class="n">PolynomialEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'SumEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">sum_coding</span><span class="o">.</span><span class="n">SumEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'TargetEncoder'</span><span class="p">:</span> <span class="n">ce</span><span class="o">.</span><span class="n">target_encoder</span><span class="o">.</span><span class="n">TargetEncoder</span><span class="p">,</span></span>
+<span class="code-line">    <span class="c1"># 'WOEEncoder': ce.woe.WOEEncoder target must be binary</span></span>
+<span class="code-line"><span class="p">}</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+ 
+
+
+The functionality of the individual encoders might deserve their own posts. <p></p>
+<p>We define the model and the result dataframe to add to:
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [ ]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">selected_model</span> <span class="o">=</span> <span class="n">XGBRegressor</span><span class="p">(</span><span class="n">tree_method</span> <span class="o">=</span> <span class="s2">"gpu_hist"</span><span class="p">,</span><span class="n">single_precision_histogram</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">gpu_id</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">clothing_data_df_results</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">'encoder'</span><span class="p">,</span> <span class="s1">'rmse'</span><span class="p">,</span> <span class="s1">'r2'</span><span class="p">])</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<p></p>
+<p>We iterate through the dictionary of encoders, defining a pipeline at each iteration. For neatness, we could (should heh) actually define a function for the pipeline which will accept the encoder dictionary item as an argument.
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [ ]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">encoders</span><span class="p">:</span></span>
+<span class="code-line">    </span>
+<span class="code-line">    <span class="n">time_0</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span></span>
+<span class="code-line">    <span class="n">categorical_transformer</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span></span>
+<span class="code-line">        <span class="n">steps</span><span class="o">=</span><span class="p">[</span></span>
+<span class="code-line">            <span class="p">(</span><span class="s1">'imputer'</span><span class="p">,</span> <span class="n">SimpleImputer</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'constant'</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="s1">'missing'</span><span class="p">)),</span></span>
+<span class="code-line">            <span class="p">(</span><span class="s1">'encoder'</span><span class="p">,</span> <span class="n">encoders</span><span class="p">[</span><span class="n">key</span><span class="p">]())</span></span>
+<span class="code-line">        <span class="p">]</span></span>
+<span class="code-line">    <span class="p">)</span>    </span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="n">numeric_transformer</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span></span>
+<span class="code-line">        <span class="n">steps</span><span class="o">=</span><span class="p">[</span></span>
+<span class="code-line">            <span class="p">(</span><span class="s1">'imputer'</span><span class="p">,</span> <span class="n">SimpleImputer</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'mean'</span><span class="p">)),</span></span>
+<span class="code-line">            <span class="p">(</span><span class="s1">'scaler'</span><span class="p">,</span> <span class="n">StandardScaler</span><span class="p">())</span></span>
+<span class="code-line">        <span class="p">]</span></span>
+<span class="code-line">    <span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="n">preprocessor</span> <span class="o">=</span> <span class="n">ColumnTransformer</span><span class="p">(</span></span>
+<span class="code-line">        <span class="n">transformers</span><span class="o">=</span><span class="p">[</span></span>
+<span class="code-line">            <span class="p">(</span><span class="s1">'numerical'</span><span class="p">,</span> <span class="n">numeric_transformer</span><span class="p">,</span> <span class="n">numeric_features</span><span class="p">),</span></span>
+<span class="code-line">            <span class="p">(</span><span class="s1">'categorical'</span><span class="p">,</span> <span class="n">categorical_transformer</span><span class="p">,</span> <span class="n">categorical_features</span><span class="p">)</span></span>
+<span class="code-line">        <span class="p">]</span></span>
+<span class="code-line">    <span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="n">pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span></span>
+<span class="code-line">        <span class="n">steps</span><span class="o">=</span><span class="p">[</span></span>
+<span class="code-line">            <span class="p">(</span><span class="s1">'preprocessor'</span><span class="p">,</span> <span class="n">preprocessor</span><span class="p">),</span></span>
+<span class="code-line">            <span class="p">(</span><span class="s1">'regressor'</span><span class="p">,</span> <span class="n">selected_model</span><span class="p">)</span></span>
+<span class="code-line">        <span class="p">]</span></span>
+<span class="code-line">    <span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="n">model</span> <span class="o">=</span> <span class="n">pipe</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span></span>
+<span class="code-line">    <span class="n">y_pred</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="n">row</span> <span class="o">=</span> <span class="p">{</span></span>
+<span class="code-line">        <span class="s1">'encoder'</span><span class="p">:</span> <span class="n">key</span><span class="p">,</span></span>
+<span class="code-line">        <span class="s1">'rmse'</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mse</span><span class="p">(</span><span class="n">y_test</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)),</span></span>
+<span class="code-line">        <span class="s1">'r2'</span><span class="p">:</span> <span class="n">r2_score</span><span class="p">(</span><span class="n">y_test</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">),</span></span>
+<span class="code-line">    <span class="p">}</span></span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="n">clothing_data_df_results</span> <span class="o">=</span> <span class="n">clothing_data_df_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></span>
+<span class="code-line">    <span class="c1">#print(key, 'time taken:', time.time()-time_0)</span></span>
+<span class="code-line">    </span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<p></p>
+<p>Now we see the fruits of the machine's hard labour:
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [7]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">clothing_data_df_results</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="s1">'rmse'</span><span class="p">)</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt output_prompt">Out[7]:</div>
+<div class="output_html rendered_html output_subarea output_execute_result">
+<div>
+<style scoped="">
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe table table-striped">
+<thead>
+<tr style="text-align: right;">
+<th></th>
+<th>encoder</th>
+<th>rmse</th>
+<th>r2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th>0</th>
+<td>BackwardDifferenceEncoder</td>
+<td>0.007809</td>
+<td>0.999273</td>
+</tr>
+<tr>
+<th>9</th>
+<td>OrdinalEncoder</td>
+<td>0.008245</td>
+<td>0.999189</td>
+</tr>
+<tr>
+<th>1</th>
+<td>BaseNEncoder</td>
+<td>0.014554</td>
+<td>0.997474</td>
+</tr>
+<tr>
+<th>2</th>
+<td>BinaryEncoder</td>
+<td>0.014554</td>
+<td>0.997474</td>
+</tr>
+<tr>
+<th>5</th>
+<td>JamesSteinEncoder</td>
+<td>0.016508</td>
+<td>0.996750</td>
+</tr>
+<tr>
+<th>12</th>
+<td>TargetEncoder</td>
+<td>0.021040</td>
+<td>0.994721</td>
+</tr>
+<tr>
+<th>8</th>
+<td>MEstimateEncoder</td>
+<td>0.023136</td>
+<td>0.993616</td>
+</tr>
+<tr>
+<th>4</th>
+<td>HelmertEncoder</td>
+<td>0.032937</td>
+<td>0.987063</td>
+</tr>
+<tr>
+<th>6</th>
+<td>OneHotEncoder</td>
+<td>0.042753</td>
+<td>0.978201</td>
+</tr>
+<tr>
+<th>11</th>
+<td>SumEncoder</td>
+<td>0.042821</td>
+<td>0.978133</td>
+</tr>
+<tr>
+<th>7</th>
+<td>LeaveOneOutEncoder</td>
+<td>0.076102</td>
+<td>0.930933</td>
+</tr>
+<tr>
+<th>10</th>
+<td>PolynomialEncoder</td>
+<td>0.109938</td>
+<td>0.855862</td>
+</tr>
+<tr>
+<th>3</th>
+<td>CatBoostEncoder</td>
+<td>0.149905</td>
+<td>0.732010</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p></p>
+<p>Based on the results, it's fair to say that this is a useful exercise and I have it as a standard step in my modeling process. The difference in the treatment of one variable with different techniques can actually have a significant impact. </p></body>
+  </div>
+  <div class="tag-cloud">
+    <p>
+      <a href="/tag/categorical-encoding.html">categorical encoding</a>
+      <a href="/tag/regression.html">regression</a>
+      <a href="/tag/xgboost.html">xgboost</a>
+    </p>
+  </div>
+
+
+  <div class="neighbors">
+    <a class="btn float-left" href="/clickstream-prediction.html" title="Clickstream Prediction: Data Science project 9 of 500">
+      <i class="fa fa-angle-left"></i> Previous Post
+    </a>
+  </div>
+
+
+
+</article>
+
+    <footer>
+<p>&copy;  </p>
+<p>
+Built with <a href="http://getpelican.com" target="_blank">Pelican</a> using <a href="http://bit.ly/flex-pelican" target="_blank">Flex</a> theme
+</p>    </footer>
+  </main>
+
+
+
+
+<script type="application/ld+json">
+{
+  "@context" : "http://schema.org",
+  "@type" : "Blog",
+  "name": " Fail Safe ",
+  "url" : "",
+  "image": "images/profile.png",
+  "description": "some description"
+}
+</script>
+
+</body>
+</html>
