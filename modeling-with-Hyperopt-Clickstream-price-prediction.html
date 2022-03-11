@@ -1,0 +1,945 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/theme/stylesheet/style.min.css">
+
+
+    <link id="pygments-light-theme" rel="stylesheet" type="text/css"
+          href="/theme/pygments/monokai.min.css">
+
+
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/fontawesome.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/brands.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/solid.css">
+
+
+
+
+
+  
+
+
+ 
+
+<meta name="author" content="Nicolle Garber" />
+<meta name="description" content="Useful pipeline for regression prediction (straightforward features for downstream interpretation)" />
+<meta name="keywords" content="regression, xgboost, catboost, lightgbm, hyperopt">
+
+
+  <meta property="og:site_name" content="Fail Safe"/>
+  <meta property="og:title" content="Modeling with Hyperopt and XGBoost, LightGBM, Catboost: Clickstream price prediction"/>
+  <meta property="og:description" content="Useful pipeline for regression prediction (straightforward features for downstream interpretation)"/>
+  <meta property="og:locale" content="en_US"/>
+  <meta property="og:url" content="/modeling-with-Hyperopt-Clickstream-price-prediction.html"/>
+  <meta property="og:type" content="article"/>
+  <meta property="article:published_time" content="2022-03-11 00:00:00+02:00"/>
+  <meta property="article:modified_time" content=""/>
+  <meta property="article:author" content="/author/nicolle-garber.html">
+  <meta property="article:section" content="regression"/>
+  <meta property="article:tag" content="regression"/>
+  <meta property="article:tag" content="xgboost"/>
+  <meta property="article:tag" content="catboost"/>
+  <meta property="article:tag" content="lightgbm"/>
+  <meta property="article:tag" content="hyperopt"/>
+  <meta property="og:image" content="images/profile.png">
+
+  <title>Fail Safe &ndash; Modeling with Hyperopt and XGBoost, LightGBM, Catboost: Clickstream price prediction</title>
+
+</head>
+<body class="light-theme">
+  <aside>
+    <div>
+      <a href="/">
+        <img src="images/profile.png" alt="Data Science Blog" title="Data Science Blog">
+      </a>
+
+      <h1>
+        <a href="/">Data Science Blog</a>
+      </h1>
+
+<p>The FailSafe experiment</p>
+
+
+      <ul class="social">
+          <li>
+            <a  class="sc-linkedin" href="https://www.linkedin.com/in/nicolle-garber" target="_blank">
+              <i class="fab fa-linkedin"></i>
+            </a>
+          </li>
+          <li>
+            <a  class="sc-github" href="https://github.com/NGarb/FailSafe" target="_blank">
+              <i class="fab fa-github"></i>
+            </a>
+          </li>
+          <li>
+            <a  class="sc-medium" href="https://medium.com/@nikigarber" target="_blank">
+              <i class="fab fa-medium"></i>
+            </a>
+          </li>
+      </ul>
+    </div>
+
+  </aside>
+  <main>
+
+
+<article class="single">
+  <header>
+      
+    <h1 id="modeling-with-Hyperopt-Clickstream-price-prediction">Modeling with Hyperopt and XGBoost, LightGBM, Catboost: Clickstream price prediction</h1>
+    <p>
+      Posted on Fri 11 March 2022 in <a href="/category/regression.html">regression</a>
+
+        &#8226; 8 min read
+    </p>
+  </header>
+
+
+  <div>
+    <body><p>So far in the FailSafe series (500  Data Science projects failed safely), I have combined working through projects on my own with working through top-performing Kaggle solutions. 
+I've really learned a lot and have enjoyed this combination. I love working through the amazing work of people with various talents, skills and insights. 
+On the other hand, taking a dataset and working through it on my own has allowed me to develop a modeling pipeline I've come to be quite happy with for now (this is ever-evolving). 
+I started with working through simple regression tasks and have learned many other elements along the way, many of which I am recording here. </p>
+<p>My objective for <em>project 9: Clickstream Price Prediction</em> from the <a href="https://archive.ics.uci.edu/ml/datasets/clickstream+data+for+online+shopping">the UCI repository</a> was to have two separate modeling experiments. 
+The first one is straightforward modeling with minimal feature and model engineering (for downstream interpretation and analysis) and the second one to work through some techniques used in the <a href="https://github.com/pyduan/amazonaccess">winning Amazon Access Kaggle Solution</a>.
+This post explains the former modeling experiment. This is a surface-level explanation of what the modeling pipeline looks like without delving into the details behind how all the 'black-boxes' work. 
+I will cover the inner-workings of the black-boxes in future posts. This is following the breadth-first approach I speak about in my <a href="/how-to-avoid-information-overload-initial-data-science-learning.html">first post</a> </p>
+<h2>Dataset</h2>
+<p>As a reminder from the <a href="/clickstream-prediction.html">previous post</a>, project 9 of the series deals with the price prediction of an e-clothing shop based on a few online-shopping attributes. 
+The data and the description can be found at <a href="https://archive.ics.uci.edu/ml/datasets/clickstream+data+for+online+shopping">the UCI repository</a>. </p>
+<h2>Modeling</h2>
+<p>We focus on exmaining only modeling and hyperparameter tuning. In a future post, we will explore more in-depth model evaluations and related plots. 
+The structure of the main plot is as follows: </p>
+<ul>
+<li>Definition of the pipeine</li>
+<li>Baseline</li>
+<li>XGBoost defaults</li>
+<li>Simple Grid Search with XGBoost</li>
+<li>Tuning with regularization (Hyperopt)</li>
+<li>Comparison across models using Hyperopt</li>
+</ul>
+<p>One of the first things I do is define my results Dataframe which contains all the different models and their results. 
+I have defined a separate Utils file which handles the calculation of all of the metrics. This allows me to abstract this and pick and choose metrics quite easily. 
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [4]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="c1"># define results</span></span>
+<span class="code-line"><span class="n">results_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'model'</span><span class="p">,</span><span class="s1">'rmse'</span><span class="p">,</span><span class="s1">'r2'</span><span class="p">,</span><span class="s1">'mape'</span><span class="p">])</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<p></p>
+<p>The next few cells handle some definitions. I typically split my categorical features into groups where there are many unique values and few unique values. 
+The categorical features which have fewer unique values than <code>max_levels</code> can easily be one-hot encoded. This is really conventient for analysis purposes. 
+The features with many levels, we find a good categorical encoder for (I have a post <a href="/categorical_encoding_selection.html">explaining categorical encoder selection</a>) 
+Its also useful to keep track of these things in order to compile the feature names (again for analysis). Next, we do some very simple feature, dataset and model definitions. 
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [5]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="c1"># many levels can't be one-hot encoded - use encoder for these</span></span>
+<span class="code-line"><span class="n">max_levels</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">clothing_data_df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="mf">0.5</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">categorical_features</span> <span class="o">=</span> <span class="n">clothing_data_df</span><span class="o">.</span><span class="n">select_dtypes</span><span class="p">(</span><span class="n">exclude</span><span class="o">=</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">])</span><span class="o">.</span><span class="n">columns</span></span>
+<span class="code-line"><span class="n">cats_many</span> <span class="o">=</span> <span class="p">[]</span></span>
+<span class="code-line"><span class="n">cats_few</span> <span class="o">=</span> <span class="p">[]</span></span>
+<span class="code-line"><span class="k">for</span> <span class="n">ft</span> <span class="ow">in</span> <span class="n">categorical_features</span><span class="p">:</span></span>
+<span class="code-line">    <span class="n">levels</span> <span class="o">=</span> <span class="n">clothing_data_df</span><span class="p">[</span><span class="n">ft</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></span>
+<span class="code-line">    <span class="k">if</span> <span class="n">levels</span> <span class="o">&gt;</span> <span class="n">max_levels</span><span class="p">:</span></span>
+<span class="code-line">        <span class="n">cats_many</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ft</span><span class="p">)</span></span>
+<span class="code-line">    <span class="k">else</span><span class="p">:</span></span>
+<span class="code-line">        <span class="n">cats_few</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ft</span><span class="p">)</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [6]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="c1"># definitions</span></span>
+<span class="code-line"><span class="n">numeric_features</span> <span class="o">=</span> <span class="n">clothing_data_df</span><span class="o">.</span><span class="n">select_dtypes</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">])</span><span class="o">.</span><span class="n">drop</span><span class="p">([</span><span class="s1">'price'</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">columns</span></span>
+<span class="code-line"><span class="n">numeric_features</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">categorical_features</span> <span class="o">=</span> <span class="n">clothing_data_df</span><span class="o">.</span><span class="n">select_dtypes</span><span class="p">(</span><span class="n">exclude</span><span class="o">=</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">])</span><span class="o">.</span><span class="n">columns</span></span>
+<span class="code-line"><span class="n">categorical_features</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">X</span> <span class="o">=</span> <span class="n">clothing_data_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s1">'price'</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">y</span> <span class="o">=</span> <span class="n">clothing_data_df</span><span class="p">[</span><span class="s1">'price'</span><span class="p">]</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">y</span><span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">X_train</span><span class="p">,</span> <span class="n">X_test_tmp</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test_tmp</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">X_val</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_val</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X_test_tmp</span><span class="p">,</span> <span class="n">y_test_tmp</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="k">del</span> <span class="n">X_test_tmp</span><span class="p">,</span> <span class="n">y_test_tmp</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [ ]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="c1"># first model</span></span>
+<span class="code-line"><span class="n">selected_model</span> <span class="o">=</span> <span class="n">XGBRegressor</span><span class="p">(</span><span class="n">tree_method</span> <span class="o">=</span> <span class="s2">"gpu_hist"</span><span class="p">,</span><span class="n">single_precision_histogram</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">gpu_id</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<p></p>
+<p>All of the standard preprocessing stuff is kept in a Pipeline as I find it quite neat and nice to work with. I won't go into the particulars of the pipeline for this post, but please reach out with any questions!
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [ ]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="c1"># define pipeline using BackwardDifferenceEncoder for categorical</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">categorical_transformer_many_level</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span></span>
+<span class="code-line">    <span class="n">steps</span><span class="o">=</span><span class="p">[</span></span>
+<span class="code-line">        <span class="p">(</span><span class="s1">'imputer'</span><span class="p">,</span> <span class="n">SimpleImputer</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'constant'</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="s1">'missing'</span><span class="p">)),</span></span>
+<span class="code-line">        <span class="p">(</span><span class="s1">'encoder'</span><span class="p">,</span> <span class="n">encoders</span><span class="p">[</span><span class="s1">'BackwardDifferenceEncoder'</span><span class="p">]())</span></span>
+<span class="code-line">    <span class="p">]</span></span>
+<span class="code-line"><span class="p">)</span>    </span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">categorical_transformer</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span></span>
+<span class="code-line">    <span class="n">steps</span><span class="o">=</span><span class="p">[</span></span>
+<span class="code-line">        <span class="p">(</span><span class="s1">'imputer'</span><span class="p">,</span> <span class="n">SimpleImputer</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'constant'</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="s1">'missing'</span><span class="p">)),</span></span>
+<span class="code-line">        <span class="p">(</span><span class="s1">'encoder'</span><span class="p">,</span> <span class="n">encoders</span><span class="p">[</span><span class="s1">'OneHotEncoder'</span><span class="p">]())</span></span>
+<span class="code-line">    <span class="p">]</span></span>
+<span class="code-line"><span class="p">)</span> </span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">numeric_transformer</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span></span>
+<span class="code-line">    <span class="n">steps</span><span class="o">=</span><span class="p">[</span></span>
+<span class="code-line">        <span class="p">(</span><span class="s1">'imputer'</span><span class="p">,</span> <span class="n">SimpleImputer</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s1">'mean'</span><span class="p">)),</span></span>
+<span class="code-line">        <span class="p">(</span><span class="s1">'scaler'</span><span class="p">,</span> <span class="n">StandardScaler</span><span class="p">())</span></span>
+<span class="code-line">    <span class="p">]</span></span>
+<span class="code-line"><span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">preprocessor</span> <span class="o">=</span> <span class="n">ColumnTransformer</span><span class="p">(</span></span>
+<span class="code-line">    <span class="n">transformers</span><span class="o">=</span><span class="p">[</span></span>
+<span class="code-line">        <span class="p">(</span><span class="s1">'numerical'</span><span class="p">,</span> <span class="n">numeric_transformer</span><span class="p">,</span> <span class="n">numeric_features</span><span class="p">),</span></span>
+<span class="code-line">        <span class="p">(</span><span class="s1">'categorical_many'</span><span class="p">,</span> <span class="n">categorical_transformer_many_level</span><span class="p">,</span> <span class="n">cats_many</span><span class="p">),</span></span>
+<span class="code-line">        <span class="p">(</span><span class="s1">'categorical'</span><span class="p">,</span> <span class="n">categorical_transformer</span><span class="p">,</span> <span class="n">cats_few</span><span class="p">)</span></span>
+<span class="code-line">    <span class="p">]</span></span>
+<span class="code-line"><span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">pipe</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span></span>
+<span class="code-line">    <span class="n">steps</span><span class="o">=</span><span class="p">[</span></span>
+<span class="code-line">        <span class="p">(</span><span class="s1">'preprocessor'</span><span class="p">,</span> <span class="n">preprocessor</span><span class="p">),</span></span>
+<span class="code-line">        <span class="p">(</span><span class="s1">'regressor'</span><span class="p">,</span> <span class="n">selected_model</span><span class="p">)</span></span>
+<span class="code-line">    <span class="p">]</span></span>
+<span class="code-line"><span class="p">)</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<p></p>
+<p>Now let's examine our mean baseline for good practice. 
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [8]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">pred</span> <span class="o">=</span> <span class="p">[</span><span class="n">y_train</span><span class="o">.</span><span class="n">mean</span><span class="p">()]</span><span class="o">*</span><span class="nb">len</span><span class="p">(</span><span class="n">y_val</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">pred</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">y_val_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">y_val</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">res_row_obj</span> <span class="o">=</span> <span class="n">reg_metrics</span><span class="o">.</span><span class="n">calc_results</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">y_val_s</span><span class="p">,</span><span class="s1">'Baseline'</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">row</span> <span class="o">=</span> <span class="n">res_row_obj</span><span class="o">.</span><span class="n">calc_results_row</span><span class="p">()</span></span>
+<span class="code-line"><span class="n">results_df</span> <span class="o">=</span> <span class="n">results_df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">,</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">results_df</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt output_prompt">Out[8]:</div>
+<div class="output_html rendered_html output_subarea output_execute_result">
+<div>
+<style scoped="">
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe table table-striped">
+<thead>
+<tr style="text-align: right;">
+<th></th>
+<th>model</th>
+<th>rmse</th>
+<th>r2</th>
+<th>mape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th>0</th>
+<td>Baseline</td>
+<td>12.650522</td>
+<td>-7.924584e+29</td>
+<td>23.99252</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<br/>
+If we look at the distribution of the target price, we see that the modal price is around 40, so these results are not ideal. Another note is that even though I've scaled the target, I always inverse transform it in order to made sense of the results and for them to be closer to reality.  <p></p>
+<p>In my process, I usually look to an XGBoost model trained with the default parameters to be a baseline. 
+The default parameters are well chosen. Naturally, it is really easy to see that yes, indeed, a machine learning model performs much better than a simple average 
+and it is useful for this particular problem. 
+I also use it to look at what the learning curves are doing which helps me adjust early_stopping, iterations, evaluations etc further on down the line. 
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [9]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">preprocessor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">X_train_prc</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">X_val_prc</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_val</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">X_test_prc</span> <span class="o">=</span> <span class="n">preprocessor</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">evalset</span> <span class="o">=</span> <span class="p">[(</span><span class="n">X_train_prc</span><span class="p">,</span> <span class="n">y_train</span><span class="p">),</span> <span class="p">(</span><span class="n">X_val_prc</span><span class="p">,</span><span class="n">y_val</span><span class="p">)]</span></span>
+<span class="code-line"><span class="n">selected_model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train_prc</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">eval_metric</span><span class="o">=</span><span class="s1">'rmse'</span><span class="p">,</span> <span class="n">eval_set</span><span class="o">=</span><span class="n">evalset</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt output_prompt">Out[9]:</div>
+<div class="output_text output_subarea output_execute_result">
+<pre><span class="code-line">XGBRegressor(base_score=0.5, booster='gbtree', colsample_bylevel=1,</span>
+<span class="code-line">             colsample_bynode=1, colsample_bytree=1, enable_categorical=False,</span>
+<span class="code-line">             gamma=0, gpu_id=0, importance_type=None,</span>
+<span class="code-line">             interaction_constraints='', learning_rate=0.300000012,</span>
+<span class="code-line">             max_delta_step=0, max_depth=6, min_child_weight=1, missing=nan,</span>
+<span class="code-line">             monotone_constraints='()', n_estimators=100, n_jobs=12,</span>
+<span class="code-line">             num_parallel_tree=1, predictor='auto', random_state=0, reg_alpha=0,</span>
+<span class="code-line">             reg_lambda=1, scale_pos_weight=1, single_precision_histogram=True,</span>
+<span class="code-line">             subsample=1, tree_method='gpu_hist', validate_parameters=1,</span>
+<span class="code-line">             verbosity=None)</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [17]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">selected_model</span><span class="o">.</span><span class="n">evals_result</span><span class="p">()</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">6</span><span class="p">))</span></span>
+<span class="code-line"><span class="c1"># plot learning curves</span></span>
+<span class="code-line"><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="s1">'validation_0'</span><span class="p">][</span><span class="s1">'rmse'</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s1">'train'</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="s1">'validation_1'</span><span class="p">][</span><span class="s1">'rmse'</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s1">'test'</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span></span>
+<span class="code-line"><span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_png output_subarea">
+<img class="img-fluid" src="data:image/png;base64,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
+"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [10]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">pred</span> <span class="o">=</span> <span class="n">selected_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test_prc</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">pred</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">y_val_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">y_test</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">res_row_obj</span> <span class="o">=</span> <span class="n">reg_metrics</span><span class="o">.</span><span class="n">calc_results</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">y_val_s</span><span class="p">,</span><span class="s1">'defaults XGBReg'</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">row</span> <span class="o">=</span> <span class="n">res_row_obj</span><span class="o">.</span><span class="n">calc_results_row</span><span class="p">()</span></span>
+<span class="code-line"><span class="n">results_df</span> <span class="o">=</span> <span class="n">results_df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">,</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">results_df</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt output_prompt">Out[10]:</div>
+<div class="output_html rendered_html output_subarea output_execute_result">
+<div>
+<style scoped="">
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe table table-striped">
+<thead>
+<tr style="text-align: right;">
+<th></th>
+<th>model</th>
+<th>rmse</th>
+<th>r2</th>
+<th>mape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th>0</th>
+<td>Baseline</td>
+<td>12.650522</td>
+<td>-7.924584e+29</td>
+<td>23.992520</td>
+</tr>
+<tr>
+<th>1</th>
+<td>defaults XGBReg</td>
+<td>1.773988</td>
+<td>9.805227e-01</td>
+<td>0.135421</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<br/>
+Already, the default XGBoost is performing really well. On closer inspection, we can see that it is overfitting slightly. 
+This becomes obvious when we look at a plot of actual vs predicted price. This we can remedy with using regularization or by selecting a different model.<br/>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [26]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">g</span> <span class="o">=</span><span class="n">sns</span><span class="o">.</span><span class="n">scatterplot</span><span class="p">(</span><span class="n">y_val_s</span><span class="p">,</span> <span class="n">pred</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">g</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">ylim</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">200</span><span class="p">))</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt output_prompt">Out[26]:</div>
+<div class="output_text output_subarea output_execute_result">
+<pre><span class="code-line">[(0.0, 200.0)]</pre>
+</div>
+</div>
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_png output_subarea">
+<img class="img-fluid" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeQAAAFaCAYAAADPbi78AAAAOXRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjUuMSwgaHR0cHM6Ly9tYXRwbG90bGliLm9yZy/YYfK9AAAACXBIWXMAAAsTAAALEwEAmpwYAAAm40lEQVR4nO3deXxU5b3H8e9klWxCICohAgkkbHkhNSjQBhAVgwuylL1CS3BLIbhUWSKgvkAKorS3egHF2nsv2nrjgsWVIkgRWW8saELYymKzwGWJhgTNMjn3Dy4RzEaGmcwzOZ/3X+bMmTnPj0G+Oc95FodlWZYAAIBX+Xm7AQAAgEAGAMAIBDIAAAYgkAEAMACBDACAAQhkAAAMENDQCRUVFcrIyFB+fr7Ky8uVlpamzp07a9asWXI4HIqPj9eTTz4pPz8/vfjii9q4caMCAgKUkZGhnj17NkUNAAD4vAYDec2aNWrZsqWWLFmib775RsOHD1fXrl318MMPq0+fPpo3b57Wr1+v6Oho7dixQ2+++aYKCwuVnp6ut99+uylqAADA5zUYyEOGDFFKSookybIs+fv7KycnRzfeeKMkacCAAfr8888VGxur5ORkORwORUdHy+l06vTp04qMjKz1c6uqqlRaWqrAwEA5HA43lgQAgHksy1JFRYVCQ0Pl51fziXGDgRwaGipJKikp0fTp0/Xwww9r8eLF1SEaGhqqM2fOqKSkRC1btrzofWfOnKkzkEtLS7V//35XagIAwGclJCQoPDy8xvEGA1mSCgsLNXXqVE2YMEFDhw7VkiVLql8rLS1VRESEwsLCVFpaetHx2i54XmBgYHXDgoKCLrkQd8vOzlZiYqLXru9Ndq5dsnf9dq5dsnf91O692svLy7V///7q/PuxBgP55MmTSk1N1bx589SvXz9JUvfu3bV9+3b16dNHmzZtUt++fdW+fXstWbJEU6ZM0bFjx1RVVVXn3bGk6jvsoKAgBQcHu1Kb23j7+t5k59ole9dv59ole9dP7d5V12PaBgN5xYoVKi4u1rJly7Rs2TJJ0hNPPKEFCxZo6dKliouLU0pKivz9/dW7d2+NHTtWVVVVmjdvnnsrAACgGWswkOfMmaM5c+bUOP7aa6/VOJaenq709HT3tAwAABthYRAAAAxAIAMAYAACGQAAAxDIAAAYgEAGAMAABDIAAAYgkAEAMACBDACAAQhkAAAMQCADAGAAAhkAAAMQyAAAGIBABgDAAAQyAAAGIJABADAAgQwAgAEIZAAADEAgAwBgAAIZAAADEMgAABiAQAYAwAAEMgAABiCQAQAwAIEMAIABCGQAAAxAIAMAYAACGQAAAxDIAAAYgEAGAMAABDIAAAYIuJSTdu/ereeee06rVq3SI488opMnT0qS8vPzdd111+l3v/ud0tLSVFRUpMDAQAUHB+uVV17xaMMBAGhOGgzklStXas2aNWrRooUk6Xe/+50k6dtvv9WkSZM0e/ZsSdLRo0f1wQcfyOFweLC5AAA0Tw7Lsqz6Tli7dq26dOmiGTNmKDMzs/r4ggUL1KVLF40ePVonT57U8OHD1aNHDxUXF+v+++/XoEGD6r1wWVmZsrOz3VMF4EVBQUEKDg5WWVmZysvLvd0cAIZLTExUcHBwjeMN3iGnpKQoLy/vomOnTp3S1q1bq++OKyoqlJqaqkmTJunbb7/V+PHj1bNnT7Vu3drlhjWVrKwsJSUlee363mTn2iX31H/gRLE+ys3XhoP5urnzNbq9WwfFR0W4qYWew3dv3/qp3Xu1N3QjeknPkH/s448/1l133SV/f39JUps2bTRu3DgFBASodevW6tatmw4fPnxJgQz4qgMninXL8nXK//asJOm9nDw9t3GP1qcN9olQBmAWl0ZZb926VQMGDKj+ecuWLXrooYckSaWlpTpw4IDi4uLc00LAUB/l5leH8Xn5357Vx3sLvNQiAL7MpUA+fPiwrr322uqfBw4cqI4dO2rMmDGaMmWKHn30UUVGRrqtkYCJNhw8VuvxTw8UNnFLADQHl9RlHRMTc9GArg8++KDGOU888YT7WgX4gJs7X6P3cvJqHB8U39YLrQHg61gYBHDR7d3aqd2VIRcda3dliIZ0jfZSiwD4MpcGdQGQ4qMitD5tsD7eW6BPDxRqUHxbDekazYAuAC4hkIHLEB8VofioCKX37+rtpgDwcXRZAwBgAAIZAAADEMgAABiAQAYAwAAEMgAABiCQAQAwAIEMAIABCGQAAAxAIAMAYAACGQAAAxDIAAAYgEAGAMAABDIAAAYgkAEAMACBDACAAQhkAAAMQCADAGAAAhkAAAMQyAAAGIBABgDAAAQyAAAGIJABADAAgQwAgAEIZAAADEAgAwBgAAIZAAADXFIg7969WxMnTpQk7dmzR/3799fEiRM1ceJEffjhh5KkF198UaNGjdK4ceP05Zdfeq7FAAA0QwENnbBy5UqtWbNGLVq0kCTl5ORo8uTJSk1NrT4nJydHO3bs0JtvvqnCwkKlp6fr7bff9lyrAQBoZhq8Q27fvr1eeOGF6p+zs7O1ceNG/eIXv1BGRoZKSkqUlZWl5ORkORwORUdHy+l06vTp0x5tOAAAzUmDd8gpKSnKy8ur/rlnz54aPXq0EhMTtXz5cv37v/+7wsPD1bJly+pzQkNDdebMGUVGRjbYgOzsbNda7kZZWVneboLX2Ll2yd7127l2yd71U7uZGgzkHxs8eLAiIiKq/3v+/Pm65ZZbVFpaWn1OaWmpwsPDL+nzEhMTFRwc3NhmuE1WVpaSkpK8dn1vsnPtkr3rt3Ptkr3rp3bv1V5WVlbvTWijR1lPmTKletDW1q1b1aNHD11//fXavHmzqqqqVFBQoKqqqku6OwYAAOc0+g75qaee0vz58xUYGKg2bdpo/vz5CgsLU+/evTV27FhVVVVp3rx5nmgrAADN1iUFckxMjDIzMyVJPXr00BtvvFHjnPT0dKWnp7u3dQAA2AQLgwAAYAACGQAAAxDIAAAYgEAGAMAABDIAAAYgkAEAMACBDACAAQhkAAAMQCADAGAAAhkAAAMQyAAAGIBABgDAAAQyAAAGIJABADAAgQwAgAEIZAAADEAgAwBgAAIZAAADEMgAABiAQAYAwAAEMgAABiCQAQAwAIEMAIABCGQAAAxAIAMAYAACGQAAAxDIAAAYgEAGAMAABDIAAAYIuJSTdu/ereeee06rVq1Sbm6u5s+fL39/fwUFBWnx4sVq06aNFixYoC+++EKhoaGSpGXLlik8PNyjjQcAoLloMJBXrlypNWvWqEWLFpKkZ555RnPnzlW3bt30xhtvaOXKlZo9e7ZycnL0yiuvKDIy0uONBiAdOFGsj3LzteHgMd3c+Rrd3q2d4qMivN0sAC5qsMu6ffv2euGFF6p/Xrp0qbp16yZJcjqdCg4OVlVVlY4ePap58+Zp3LhxeuuttzzXYgA6cKJYtyxfp0f++j96LydPj/z1f3TL8nU6cKLY200D4CKHZVlWQyfl5eXp0UcfVWZmZvWxL774Qk888YRef/11BQUF6b/+6780efJkOZ1OTZo0SQsXLlTXrl3r/MyysjJlZ2e7pwrARoKCgvS3E5ZmfLC7xmtL7uylwVFSeXm5F1oG4FIkJiYqODi4xvFLeob8Yx9++KGWL1+ul19+WZGRkdUhfL5bu2/fvtq7d2+9gdxQw5pKVlaWkpKSvHZ9b7Jz7ZJv1z/31U9rPb75yEk9evOgBt/vy7W7g53rp3bv1d7QjWijR1n/9a9/1WuvvaZVq1bp2muvlSQdOXJE48ePl9PpVEVFhb744gv16NHD9VYDqNfNna+p9fig+LZN3BIA7tKoO2Sn06lnnnlGbdu2VXp6uiTphhtu0PTp0zVs2DCNGTNGgYGBGjZsmOLj4z3SYADS7d3a6bmNe5T/7dnqY+2uDNGQrtFebBWAy3FJgRwTE1P9/HjHjh21nnPvvffq3nvvdV/LANQpPipC69MG6+O9Bfr0QKEGxbfVkK7RjLIGfJhLz5ABeF98VITioyKU3r/hsRoAzMdKXQAAGIBABgDAAAQyAAAGIJABADAAgQwAgAEIZAAADEAgAwBgAAIZAAADEMgAABiAQAYAwAAEMgAABiCQAQAwAIEMAIABCGQAAAxAIAMAYAACGQAAAxDIAAAYgEAGAMAABDIAAAYgkAEAMACBDACAAQhkAAAMQCADAGAAAhkAAAMQyAAAGIBABgDAAAQyAAAGIJABADAAgQwAgAEuKZB3796tiRMnSpKOHj2q8ePHa8KECXryySdVVVUlSXrxxRc1atQojRs3Tl9++aXnWgwAQDPUYCCvXLlSc+bMUVlZmSTpt7/9rR5++GH9+c9/lmVZWr9+vXJycrRjxw69+eabWrp0qZ5++mmPNxwAgObEYVmWVd8Ja9euVZcuXTRjxgxlZmaqf//+2rRpkxwOhz755BN9/vnnio2N1ffff6/7779fkjR8+HC9+uqrioyMrPNzy8rKlJ2d7d5qAAAwXGJiooKDg2scD2jojSkpKcrLy6v+2bIsORwOSVJoaKjOnDmjkpIStWzZsvqc88frC+SGGtZUsrKylJSU5LXre5Oda5fsXb+da5fsXT+1e6/2hm5EGz2oy8/vh7eUlpYqIiJCYWFhKi0tveh4eHh4Yz8aAADbanQgd+/eXdu3b5ckbdq0Sb1799b111+vzZs3q6qqSgUFBaqqqrqku2MAAHBOg13WPzZz5kzNnTtXS5cuVVxcnFJSUuTv76/evXtr7Nixqqqq0rx58zzRVgAAmq1LCuSYmBhlZmZKkmJjY/Xaa6/VOCc9PV3p6enubR0AADbBwiAAABiAQAYAwAAEMgAABiCQAQAwAIEMAIABCGQAAAxAIAMAYAACGQAAAxDIAAAYgEAGAMAABDIAAAYgkAEAMACBDACAAQhkAAAMQCADAGAAAhkAAAMQyAAAGIBABgDAAAHebgAAAKbJyjultXsLtP3ICfXpGKWUrtFKimnt0WsSyAAAXCAr75RGvLpR+d+elSS9n5uvFVv2a3XqTR4NZbqsAQC4wNq9BdVhfF7+t2e1bl+BR69LIAMAcIHtR07UenzbkZMevS6BDADABfp0jKr1eN+ObTx6XQIZAIALpHSNVrsrQy461u7KEA3uEu3R6zKoCwCACyTFtNbq1Ju0bl+Bth05qb4d22hwF0ZZAwDQ5JJiWns8gH+MQAYAGMcb84C9jUAGABjFW/OAvY1BXQAAo3hrHrC3uXSH/M4772j16tWSpLKyMuXm5mrp0qVavHix2rZtK0lKT0/XjTfe6L6WAgBswVvzgL3NpUAeOXKkRo4cKUl6+umn9fOf/1zZ2dl6/PHHlZKS4tYGAgDspU/HKL2fm1/juKfnAXvbZXVZf/XVVzp48KDGjh2rnJwcvf3225owYYIWLVqkyspKd7URAGAj3poH7G0Oy7IsV988bdo03XPPPerbt6/+9Kc/6dZbb1VMTIyefPJJJSQk6J577qnzvWVlZcrOznb10gCAJpCYmKiAgABVVlY22b/ZcXFxOlTi1Lr9hT/MA05oq7gwfx06dKhJ2uBJiYmJCg4OrnHc5VHWxcXFOnz4sPr27StJ+vnPf66IiAhJ0i233KK1a9deVsOaSlZWlpKSkrx2fW+yc+2Sveu3c+2SvetvTO1Zeaf0/Gf7L5h61LHJRjkntZKSrq3ZRX0535u3v/eGbkRd7rLeuXOn+vXrJ0myLEt33323jh07JknaunWrevTo4epHAwC87PzUo7kf7dL7ufma+9EujXh1o7LyTnm7ac2Wy3fIhw8fVkxMjCTJ4XBowYIFmjZtmq644gp16tRJY8aMcVsjAQBNq76pR815LrA3uRzI995770U/JycnKzk5+bIbBADwPrtOPfImFgYBANTgrS0I7YxABgDUYNepR97EWtYAgBq8tQWhnRHIAIBaeWMLQjsjkAHAUHbcgtDOCGQAMJBdtyC0MwZ1AUATOHCiWGVlZXI6nSorK9OBE8X1nm/XLQjtjDtkAPCwoqJiFX9frud3H/2h+7lLWxUVFatVq4ha38M8YPshkAHAww6VlGvEn/5es/t58kAltar9PXbdgtDO6LIGgDrszj+t367/SsNe2aDfrv9Ku/NPu/Q5a/cV1t79vL+wzvcwD9h+uEMGgFrszj+toX/8VAdm3qWAm7qrsrJS8Yvf13tTBum6dpGN+ixXup+ZB2w/BDIA1KJ9iEOrJw+8aPvB1ZMHqn2Io9Gf5Wr3M/OA7YVABoBaHCpxNvq5b11SukZrxZb9F3Vb0/2MHyOQAdhOr169Gjynvue+Sdc2bmAV3c+4FAQyANtozMpX7p52RPczGkIgA7CFxq58xbQjNDWmPQGwhcaufJXSpW3t044S2nqsjbA37pAB2EJju6Djwvy1evJArdtf+MNz34S2igvz92QzYWMEMgCjZeWdUmJUmAICAlRZWansEyUuPYttbBf0r975h97fk6+zC8dUz0MOycjU0B4xejd1UKOvDzSEQAZgrKKiIsmyLpoLfG4N6CK1atW4uUeNnXo0sNM1en9PvkIyMi86flOnqxtfCHAJCGQAxnLnXODGTj0a2iNGv9+UWyPA7+we43I9QH0IZADGcudcYOmHqUdOp1P+/vU/C46PitD6tMH6eG+BPj1QqEHxbTWka7Tio2rfnQm4XAQygCbTmHnAkue2INy1a5eSkpIaPC8+KkLxURFK79/1sq4HXAoCGUCTaOw8YIm5wLAX5iEDaBKNnQcssQUh7IU7ZABNwpXu57jQwNrnAocGXlZbwsPDL+v9gCcQyADq1djnvnVxpfu5VasIRVQW65HkhOq5wF8Xl6lVK9cGVh04UayPcvO14UChbj7m1O3d2jFIC8YgkAHUyZXnvnVxdQvCCwPT399f8VHBjbrueQdOFOuW5euqr//ennw9t3GP1qcNJpRhBAIZsKFL2X5Qqv+5b2MD2dtbEH6Um19rLR/vLSCQYQSXA3nEiBEKCwuTJMXExGjs2LF65pln5O/vr+TkZE2bNs1tjYS5qrsADx7TzZ2voQvQcN6eduTNLQg3HDxW6/FPDxQyrQlGcCmQy8rKZFmWVq1aVX1s2LBheuGFF3Tttdfq/vvv1549e9S9e3e3NRTmqdEFmJNHF6DB7D7t6ObO1+i9nLwaxwfFs3sTzODStKe9e/fqu+++U2pqqiZNmqSdO3eqvLxc7du3l8PhUHJysrZs2eLutsIw9XUBwvN2559WWVmZnE6nysrKtDv/dL3n233a0e3d2tVay5CuvlcLmieX7pCvuOIKTZkyRaNHj9aRI0d03333KSLihzui0NBQ/etf/7qkz8rOznalCW6VlZXl7SZ4jau1h4eHa8OBwlpf23CgUClX++nMmTOX07Qm4avffVxcnCqrqmrddOHQoUM1zu/Vq1e93c9Op1O7du2q9Tq1Tzvy87k/Oz8/P63+RR/9/WiRPjtyUv07ttHADq1UkvdPZX1d5e3mNSlf++7cyeTaXQrk2NhYdejQQQ6HQ7GxsQoPD9c333xT/XppaelFAV2fxMREBQe7NmrSHbKysi5pCb3m6HJrv/mYU+/tqdmdeXN8WyUkJFxO05qEL3/3Wf86WfemC3XUVF/3s7+/f53vq2vaka/+2SV1itFd+/df8HfUXptF+PLf+8vl7drLysrqvQl1qcv6rbfe0qJFiyRJx48f13fffaeQkBB9/fXXsixLmzdvVu/evV1rMXwGXYDeU9+mC3Vxpfv5/DiBkIxMBc34s0IyMnXL8nU6cKL48grwMl/ovYH9uHSHPGrUKM2ePVvjx4+Xw+HQwoUL5efnp8cee0xOp1PJycm67rrr3N1WGIbdcLzHldHPrkw7YqoQ0HRcCuSgoCA9//zzNY5nZmbWcjaaM3bD8Q5XRz83ZvtBialCQFNicwnAB13u6OfaBnDV5ubO19R6nKlCgPuxUhd8mrcXJsnKO6XEqDAFBASosrJS2SdKmmThi7hQvzpHP7vT7d3a6bmNe2osd8k4AcD9CGT4LG8vTFJUVCRZlj7Ye0xhwQEqKatUh8hQFRUVqVWrVh699mNr9+gXSXGa+tMEPX5Td50tr9TOvNOa8fk+rRz3M7ddh3ECQNMhkOGzvD3gKO97qbLK0t4TxdVzgdu1DFHe95Jn41iacH2cfvWXLTXuXP807qduvxbjBICmwTNk+Kz6Bhw1hbIKp0b/5ybN/WiX3s/N19yPdmn0f25SWYXT49feXVBU6y8jXxUWefzaADyDQIbP8vaAo7/tr30u8CdN8AvBpkPHaz/+z9qPAzAfgQyfNbDz1bWONB7Q6aomub67d0JqDG//MgLA/XiGDJ9VdLZcT97WU4dOlyi78Bsltm2puMgwFZ0tb5Lre3MnJEY/A80Pd8jwWX//53Hd/+Y27f/fYg3t0U77/7dY97+5TZ/983+b5Pre3Anp/Ojn3w+/QcN6xOj3w29g20vAx3GHDJ919PQZrXvwVv2sfaQCAgI08Scd9PnPEvR6Vs3djjwhLjSwjrnAgU1yfUY/A80LgQyf9fyQHjpU4qyxBeFzKd2b5PqtWkXUuRMSADQWgYzL4s2Vsg6VOOvegtDTE4H/34W1+vv7Kz7Ke1uJAvBtBDJc5u2VsurbgjDpWs8PrAIAd2JQF1xW30pZTcGb044AwN0IZLjM2ytl9ekYVevxpph2BADuRiDDZecXp+jQKlS3JrRVh1ahkppucYqULm1rn3aUwOIYAHwPz5Dhsju7t1NoUIDu+Un76u0HX/vH17qp89VNcv24MP/apx2F+TfJ9QHAnQhkuCzSX+rVrlWNaUeRTZSHJyv9NeJPG3Rg5l3V047iF7+v9WmDPb7bEgC4G4EMlx0qrah92lHqTU0y7ej8alUv7zhcvVcvq1UB8FUEMly2dm9B7dOO9hUoKaZ1k7SB1aoANBcM6oLLmHYEAO5DIMNlTDsCAPchkOGy2+qYdnQr044AoNF4htwMfJF3Sn/bV6CtR06oX8co3dYlWtc3wTPckEB/vfnLAdpw8Ji2HzmpPh3b6ObO1ygkkGlHANBYBLKP+0feKQ1/daMOzLxLj18w9eevqTfpJx4O5bbB0ncVDvW4+kolxUTq+wqnAvwcasv+CgDQaASyj+sY6qfVkwdeNBd49eSB6hjq+acRK77I05wPd+nswjHVC4OEZGRq4R0/0cxbmAkMAI1BIPs4b25BeEfXdlr++X6FZGRWH2t3ZYiGdI327IUBoBkikH2cN7cgvK5dpN6bMkgf7/3h+fWQrtG6rl2kR68LAM0RgWyYrLxTWru34IelKLtG17vIhrfnAl/XLpIABgA3IJANkpV3SiNe3Vj7UpR1hHKfjlF6Pze/xnHmAgOAb3EpkCsqKpSRkaH8/HyVl5crLS1Nbdu21QMPPKCOHTtKksaPH6877rjDnW1t9lxZijKla7RWbNl/0fvaXRmiwV14jgsAvsSlQF6zZo1atmypJUuW6JtvvtHw4cM1depUTZ48Wampqe5uo2240v0c9/+jrGtsQdgEo6wBAO7jsCzLauybSktLZVmWwsLCVFRUpFGjRik5OVmHDx+W0+lUhw4dlJGRobCwsDo/o6ysTNnZ2ZfVeBPExcXpUIlTa/cVXrQFYVyYvw4dOnTJn5OYmKjnP9uvuR/tqvHaM3f00iPJCTX+vFq1aqW3jpzV7A/+UWPq0eK7rtfIDi1UVFR0uSUCANwoMTFRwcE1F2xwKZDPKykpUVpamsaMGaPy8nJ16dJFiYmJWr58uYqLizVz5sw633s+kOtqWFPJyspSUlKS6+//0XNf6VyXcX3Pfd35WcP+uEHv76n5DHlojxi9mzqo/utdZu2+zs7127l2yd71U7v3am8o91we1FVYWKipU6dqwoQJGjp0qIqLixURcW4f2sGDB2v+/Pmut9qHuHMLwqSY1lqdepPW7Sv4ofu5S/2jrAd2uqbWQL6p09WNujYAwLtcCuSTJ08qNTVV8+bNU79+/SRJU6ZM0dy5c9WzZ09t3bpVPXr0cGtDTeXuaUdJMa0bFeRDe8To95tya9xV39k9xqXrAwC8w6VAXrFihYqLi7Vs2TItW7ZMkjRr1iwtXLhQgYGBatOmjc/cIffq1euy3u/taUfxURFanzZYH+8t0KcHCjUovq2GdI1WfFREk1wfAOAeLgXynDlzNGfOnBrH33jjjctuUFNp7AIcdTFh2lF8VITioyKU3r9rk10TAOBetlwYxJUFOOriynNfAAB+zJaB7M6BWFLjn/sCAPBjzSKQfW39ZwAAfsznA5n1nwEAzYHPr69YX/dzXVK6RqvdlSEXHWP9ZwCAN/n8HbIr3c8MxAIAmMbnA9nV7ufzA7GcTqf8/f091TwAAC6Jz3dZX273865duzzQKgAAGsfn75DpfgYANAc+H8gS84ABAL7P57usAQBoDghkAAAMQCADAGAAAhkAAAMQyAAAGIBABgDAAAQyAAAGIJABADAAgQwAgAEIZAAADEAgAwBgAAIZAAADEMgAABiAQAYAwAAEMgAABiCQAQAwAIEMAIABCGQAAAxAIAMAYIAAd35YVVWVnnrqKe3bt09BQUFasGCBOnTo4M5LAADQLLn1DvmTTz5ReXm5/vu//1u/+c1vtGjRInd+PAAAzZZb75CzsrLUv39/SVKvXr2UnZ1d57mWZUmSysvL3dkEl5SVlXm7CV5j59ole9dv59ole9dP7d5xPu/O59+PuTWQS0pKFBYWVv2zv7+/KisrFRBQ8zIVFRWSpP3797uzCS6p7xeH5s7OtUv2rt/OtUv2rp/avauiokJXXHFFjeNuDeSwsDCVlpZW/1xVVVVrGEtSaGioEhISFBgYKIfD4c5mAABgHMuyVFFRodDQ0Fpfd2sgX3/99fr00091xx13aNeuXUpISKjzXD8/P4WHh7vz8gAAGK22O+PzHFZdndkuOD/Kev/+/bIsSwsXLlSnTp3c9fEAADRbbg1kAADgGhYGAQDAAAQyAAAGIJABADCAW0dZm66iokIZGRnKz89XeXm50tLS1LlzZ82aNUsOh0Px8fF68skn5efX/H5PcTqdmjNnjg4fPiyHw6Gnn35awcHBtqj9vFOnTmnkyJF69dVXFRAQYKvaR4wYUb1GQExMjMaOHatnnnlG/v7+Sk5O1rRp07zcQs956aWXtGHDBlVUVGj8+PG68cYbbfPdv/POO1q9erWkcwti5ObmatWqVbb47isqKjRr1izl5+fLz89P8+fPN///e8tG3nrrLWvBggWWZVlWUVGRNXDgQOuBBx6wtm3bZlmWZc2dO9f629/+5s0mesy6deusWbNmWZZlWdu2bbMefPBB29RuWZZVXl5u/frXv7Zuu+026+DBg7aq/fvvv7eGDRt20bG7777bOnr0qFVVVWXde++9Vk5Ojnca52Hbtm2zHnjgAcvpdFolJSXWH/7wB1t99xd66qmnrDfeeMM23/26deus6dOnW5ZlWZs3b7amTZtm/Hdv0K8GnjdkyBA99NBDks5N0Pb391dOTo5uvPFGSdKAAQO0ZcsWbzbRY2699VbNnz9fklRQUKCIiAjb1C5Jixcv1rhx43TVVVdJkq1q37t3r7777julpqZq0qRJ2rlzp8rLy9W+fXs5HA4lJyc32/o3b96shIQETZ06VQ8++KBuuukmW33353311Vc6ePCg7rzzTtt897GxsXI6naqqqlJJSYkCAgKM/+5t1WV9fnWUkpISTZ8+XQ8//LAWL15cvVJYaGiozpw5480melRAQIBmzpypdevW6Q9/+IM+//xzW9T+zjvvKDIyUv3799fLL78s6dwvZHaoXTq3EMGUKVM0evRoHTlyRPfdd58iIiKqXw8NDdW//vUvL7bQc4qKilRQUKAVK1YoLy9PaWlptvruz3vppZc0derUGssbN+fvPiQkRPn5+br99ttVVFSkFStWaOfOnUZ/97YKZEkqLCzU1KlTNWHCBA0dOlRLliypfq20tPSif6iao8WLF+uxxx7TmDFjLlpkvTnX/vbbb8vhcGjr1q3Kzc3VzJkzdfr06erXm3Pt0rk7hQ4dOsjhcCg2Nlbh4eH65ptvql9vzvW3bNlScXFxCgoKUlxcnIKDg3Xs2LHq15tz7ecVFxfr8OHD6tu3r0pKSi5a3rg51/8f//EfSk5O1m9+8xsVFhbql7/8ZfUeCpKZtduqy/rkyZNKTU3V448/rlGjRkmSunfvru3bt0uSNm3apN69e3uziR7z7rvv6qWXXpIktWjRQg6HQ4mJibao/fXXX9drr72mVatWqVu3blq8eLEGDBhgi9ol6a233qreCvX48eP67rvvFBISoq+//lqWZWnz5s3Ntv6kpCR99tlnsiyruvZ+/frZ5ruXpJ07d6pfv36Szu03EBgYaIvvPiIionp55iuvvFKVlZXG/3tvq5W6FixYoI8++khxcXHVx5544gktWLBAFRUViouL04IFC+Tv7+/FVnrG2bNnNXv2bJ08eVKVlZW677771KlTJ82dO7fZ136hiRMn6qmnnpKfn59tai8vL9fs2bNVUFAgh8Ohxx57TH5+flq4cKGcTqeSk5P1yCOPeLuZHvPss89q+/btsixLjzzyiGJiYmzz3UvSK6+8ooCAAP3qV7+SJO3atcsW331paakyMjJ04sQJVVRUaNKkSUpMTDT6u7dVIAMAYCpbdVkDAGAqAhkAAAMQyAAAGIBABgDAAAQyAAAGIJABG1m/fr3+7d/+zdvNAFALpj0BAGAA2y2dCTRX27dv1wsvvKCAgAAVFhaqZ8+eSktL069//Wu1atVKwcHBuvvuu7Vjxw4tWrRIW7Zs0aJFi2RZlqKjo/X888+rRYsWevbZZ7Vjxw45nU6NHDmyekEJAJ5FIAPNyJdffql3331XsbGxeuihh/T3v/9dhw8f1iuvvKKYmBi98847ks6t3vXYY4/pj3/8o7p166alS5dq9erVCgg490/C6tWrVV5erilTpigxMdG4JQaB5ohABpqRG264oXpp2GHDhikzM1OtW7dWTEzMReft27dPV199tbp16yZJevTRRyVJ06dPV25urrZt2ybp3JKr+/btI5CBJkAgA83Ihevynt/z+4orrqhxXmBg4EU/nzlzRqWlpXI6nXr88cd12223SZJOnz6tkJAQzzYagCRGWQPNSlZWlo4fP66qqiq9++67GjBgQK3nxcbG6vTp0zp48KCkcxsQ/OUvf1Hfvn2VmZmpiooKlZaWasKECdq9e3dTlgDYFnfIQDNy1VVXacaMGTp+/Lh+9rOf6ac//alefvnlGucFBwdryZIlmjFjhioqKtS+fXs9++yzCgoK0tGjRzVixAhVVlZq5MiR6tOnjxcqAeyHaU9AM7F9+3a9+OKLWrVqlbebAsAFdFkDAGAA7pABADAAd8gAABiAQAYAwAAEMgAABiCQAQAwAIEMAIAB/g8PpX4/N1j96gAAAABJRU5ErkJggg==
+"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p></p>
+<p>Before we start looking at slight overfitting, we look at the parameters that typically take the longest to tune and are like the 'base' parameters. 
+Getting an idea of the best performing tree depth, learning_rate and number of estimators (equivalent to number of boosting trees) is easy with a straightforward GridSearch and also gives a good idea about what parameter ranges to use. 
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [11]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="c1"># BASIC TUNE PARAMS </span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">start_time</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="c1"># grid search</span></span>
+<span class="code-line"><span class="n">xgb_reg</span> <span class="o">=</span> <span class="n">XGBRegressor</span><span class="p">(</span><span class="n">tree_method</span> <span class="o">=</span> <span class="s2">"gpu_hist"</span><span class="p">,</span><span class="n">single_precision_histogram</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">gpu_id</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">param_grid</span> <span class="o">=</span> <span class="p">{</span></span>
+<span class="code-line">        <span class="s1">'max_depth'</span><span class="p">:</span> <span class="p">[</span><span class="mi">6</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">12</span><span class="p">],</span></span>
+<span class="code-line">        <span class="s1">'learning_rate'</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.03</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.07</span><span class="p">],</span></span>
+<span class="code-line">        <span class="s1">'n_estimators'</span><span class="p">:[</span><span class="mi">1500</span><span class="p">,</span> <span class="mi">1800</span><span class="p">,</span> <span class="mi">2100</span><span class="p">],</span></span>
+<span class="code-line">                               <span class="p">}</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="n">kfold</span> <span class="o">=</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">grid_search</span> <span class="o">=</span> <span class="n">GridSearchCV</span><span class="p">(</span><span class="n">xgb_reg</span><span class="p">,</span> <span class="n">param_grid</span><span class="p">,</span> <span class="n">scoring</span><span class="o">=</span><span class="s2">"neg_root_mean_squared_error"</span><span class="p">,</span> <span class="n">cv</span><span class="o">=</span><span class="n">kfold</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">grid_result</span> <span class="o">=</span> <span class="n">grid_search</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train_prc</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="c1"># summarize results</span></span>
+<span class="code-line"><span class="nb">print</span><span class="p">(</span><span class="s2">"Best: </span><span class="si">%f</span><span class="s2"> using </span><span class="si">%s</span><span class="s2">"</span> <span class="o">%</span> <span class="p">(</span><span class="n">grid_result</span><span class="o">.</span><span class="n">best_score_</span><span class="p">,</span> <span class="n">grid_result</span><span class="o">.</span><span class="n">best_params_</span><span class="p">))</span></span>
+<span class="code-line"><span class="n">means</span> <span class="o">=</span> <span class="n">grid_result</span><span class="o">.</span><span class="n">cv_results_</span><span class="p">[</span> <span class="s1">'mean_test_score'</span> <span class="p">]</span></span>
+<span class="code-line"><span class="n">stds</span> <span class="o">=</span> <span class="n">grid_result</span><span class="o">.</span><span class="n">cv_results_</span><span class="p">[</span> <span class="s1">'std_test_score'</span> <span class="p">]</span></span>
+<span class="code-line"><span class="n">params</span> <span class="o">=</span> <span class="n">grid_result</span><span class="o">.</span><span class="n">cv_results_</span><span class="p">[</span> <span class="s1">'params'</span> <span class="p">]</span></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="nb">print</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">start_time</span><span class="p">)</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre><span class="code-line">Best: -0.003677 using {'learning_rate': 0.05, 'max_depth': 6, 'n_estimators': 1500}</span>
+<span class="code-line">1219.6475224494934</span>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [12]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">XGBRegressor</span><span class="p">(</span><span class="n">tree_method</span> <span class="o">=</span> <span class="s2">"gpu_hist"</span><span class="p">,</span><span class="n">single_precision_histogram</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">gpu_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="o">**</span><span class="n">grid_result</span><span class="o">.</span><span class="n">best_params_</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train_prc</span><span class="p">,</span><span class="n">y_train</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">y_pred</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test_prc</span><span class="p">)</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [13]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">y_val_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">y_test</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">res_row_obj</span> <span class="o">=</span> <span class="n">reg_metrics</span><span class="o">.</span><span class="n">calc_results</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">y_val_s</span><span class="p">,</span><span class="s1">'GridSearchCV XGBReg'</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">row</span> <span class="o">=</span> <span class="n">res_row_obj</span><span class="o">.</span><span class="n">calc_results_row</span><span class="p">()</span></span>
+<span class="code-line"><span class="n">results_df</span> <span class="o">=</span> <span class="n">results_df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">,</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">results_df</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt output_prompt">Out[13]:</div>
+<div class="output_html rendered_html output_subarea output_execute_result">
+<div>
+<style scoped="">
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe table table-striped">
+<thead>
+<tr style="text-align: right;">
+<th></th>
+<th>model</th>
+<th>rmse</th>
+<th>r2</th>
+<th>mape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th>0</th>
+<td>Baseline</td>
+<td>12.650522</td>
+<td>-7.924584e+29</td>
+<td>23.992520</td>
+</tr>
+<tr>
+<th>1</th>
+<td>defaults XGBReg</td>
+<td>1.773988</td>
+<td>9.805227e-01</td>
+<td>0.135421</td>
+</tr>
+<tr>
+<th>2</th>
+<td>GridSearchCV XGBReg</td>
+<td>1.228305</td>
+<td>9.906251e-01</td>
+<td>0.041728</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<br/>
+We can see the average percentage error of residuals has dropped substantially for the GridSearch-set parameters. However, the Root Mean Squared Error which penalizes outliers more, is still close to the original. The distribution of the residuals is actually a tiny bit more dispersed but there are no super huge outlier predictions.<p></p>
+<p>Since this post is growing in length, I will leave out XGBoost tuning with HyperOpt for finding regularization parameters. If this is detail that interests you, feel free to check out <a href="https://github.com/NGarb/FailSafe/blob/master/9.%20Clickstream%20data%20for%20online%20shopping/3.%20Modeling_explain.ipynb">my notebook</a> on Github. 
+Instead, I will go right ahead to comparing the models we've been waiting for. I always assumed that finding a good model was secondary to problem definition and feature selection because the models we are using are all really good. However; after looking at these results, I realised what a huge difference model selection really makes. 
+As I've previously mentioned, this post is not about delving deeply into the inner workings of the models or the optimization algorithms. To tune the models, I use HyperOpt.
+<a href="https://towardsdatascience.com/an-example-of-hyperparameter-optimization-on-xgboost-lightgbm-and-catboost-using-hyperopt-12bc41a271e">This post</a> has really great information and the way that the author has put together all his code was a big learning to me. It forms the base of how I decided to keep my code together for hyperparameter tuning using this library and method.   </p>
+<p>First, we define the parameter spaces for model tuning. HyperOpt has several choices for distributions over which it will search specific parameters. When using <code>hp.choice</code>, the specification we give to HyperOpt is that we would like to select from a given list, set or nested list. 
+It therefore returns indices. In order to select the correct hyperparameters with these indices, I define dictionaries with the hp.choice arrays. 
+The heavy lifter is the class <code>HPOpt</code> which takes in a string description of which model method to use and processes the model training with the HyperOpt minimization. 
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [27]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="kn">from</span> <span class="nn">sklearn.metrics</span> <span class="kn">import</span> <span class="n">mean_squared_error</span></span>
+<span class="code-line"></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="c1"># XGB parameters</span></span>
+<span class="code-line"><span class="n">xgb_reg_params</span> <span class="o">=</span> <span class="p">{</span></span>
+<span class="code-line">    <span class="s1">'learning_rate'</span><span class="p">:</span>    <span class="n">hp</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">'learning_rate'</span><span class="p">,</span>    <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.31</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">)),</span></span>
+<span class="code-line">    <span class="s1">'max_depth'</span><span class="p">:</span>        <span class="n">hp</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">'max_depth'</span><span class="p">,</span>        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)),</span></span>
+<span class="code-line">    <span class="s1">'min_child_weight'</span><span class="p">:</span> <span class="n">hp</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">'min_child_weight'</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)),</span></span>
+<span class="code-line">    <span class="s1">'colsample_bytree'</span><span class="p">:</span> <span class="n">hp</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">'colsample_bytree'</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)),</span></span>
+<span class="code-line">    <span class="s1">'subsample'</span><span class="p">:</span>        <span class="n">hp</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="s1">'subsample'</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span></span>
+<span class="code-line">    <span class="s1">'n_estimators'</span><span class="p">:</span>     <span class="mi">200</span><span class="p">,</span></span>
+<span class="code-line"><span class="p">}</span></span>
+<span class="code-line"><span class="n">xgb_fit_params</span> <span class="o">=</span> <span class="p">{</span></span>
+<span class="code-line">    <span class="s1">'eval_metric'</span><span class="p">:</span> <span class="s1">'rmse'</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'early_stopping_rounds'</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'verbose'</span><span class="p">:</span> <span class="kc">False</span></span>
+<span class="code-line"><span class="p">}</span></span>
+<span class="code-line"><span class="n">xgb_para</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span></span>
+<span class="code-line"><span class="n">xgb_para</span><span class="p">[</span><span class="s1">'reg_params'</span><span class="p">]</span> <span class="o">=</span> <span class="n">xgb_reg_params</span></span>
+<span class="code-line"><span class="n">xgb_para</span><span class="p">[</span><span class="s1">'fit_params'</span><span class="p">]</span> <span class="o">=</span> <span class="n">xgb_fit_params</span></span>
+<span class="code-line"><span class="n">xgb_para</span><span class="p">[</span><span class="s1">'loss_func'</span> <span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">pred</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mean_squared_error</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">pred</span><span class="p">))</span></span>
+<span class="code-line"></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="c1"># LightGBM parameters</span></span>
+<span class="code-line"><span class="n">lgb_reg_params</span> <span class="o">=</span> <span class="p">{</span></span>
+<span class="code-line">    <span class="s1">'learning_rate'</span><span class="p">:</span>    <span class="n">hp</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">'learning_rate'</span><span class="p">,</span>    <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.31</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">)),</span></span>
+<span class="code-line">    <span class="s1">'max_depth'</span><span class="p">:</span>        <span class="n">hp</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">'max_depth'</span><span class="p">,</span>        <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)),</span></span>
+<span class="code-line">    <span class="s1">'min_child_weight'</span><span class="p">:</span> <span class="n">hp</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">'min_child_weight'</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)),</span></span>
+<span class="code-line">    <span class="s1">'colsample_bytree'</span><span class="p">:</span> <span class="n">hp</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">'colsample_bytree'</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)),</span></span>
+<span class="code-line">    <span class="s1">'subsample'</span><span class="p">:</span>        <span class="n">hp</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="s1">'subsample'</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span></span>
+<span class="code-line">    <span class="s1">'n_estimators'</span><span class="p">:</span>     <span class="mi">100</span><span class="p">,</span></span>
+<span class="code-line"><span class="p">}</span></span>
+<span class="code-line"><span class="n">lgb_fit_params</span> <span class="o">=</span> <span class="p">{</span></span>
+<span class="code-line">    <span class="s1">'eval_metric'</span><span class="p">:</span> <span class="s1">'l2'</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'early_stopping_rounds'</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'verbose'</span><span class="p">:</span> <span class="kc">False</span></span>
+<span class="code-line"><span class="p">}</span></span>
+<span class="code-line"><span class="n">lgb_para</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span></span>
+<span class="code-line"><span class="n">lgb_para</span><span class="p">[</span><span class="s1">'reg_params'</span><span class="p">]</span> <span class="o">=</span> <span class="n">lgb_reg_params</span></span>
+<span class="code-line"><span class="n">lgb_para</span><span class="p">[</span><span class="s1">'fit_params'</span><span class="p">]</span> <span class="o">=</span> <span class="n">lgb_fit_params</span></span>
+<span class="code-line"><span class="n">lgb_para</span><span class="p">[</span><span class="s1">'loss_func'</span> <span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">pred</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mean_squared_error</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">pred</span><span class="p">))</span></span>
+<span class="code-line"></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="c1"># CatBoost parameters</span></span>
+<span class="code-line"><span class="n">ctb_reg_params</span> <span class="o">=</span> <span class="p">{</span></span>
+<span class="code-line">    <span class="s1">'learning_rate'</span><span class="p">:</span>     <span class="n">hp</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">'learning_rate'</span><span class="p">,</span>     <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.31</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">)),</span></span>
+<span class="code-line">    <span class="s1">'max_depth'</span><span class="p">:</span>         <span class="n">hp</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">'max_depth'</span><span class="p">,</span>         <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)),</span></span>
+<span class="code-line">    <span class="s1">'colsample_bylevel'</span><span class="p">:</span> <span class="n">hp</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="s1">'colsample_bylevel'</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)),</span></span>
+<span class="code-line">    <span class="s1">'n_estimators'</span><span class="p">:</span>      <span class="mi">100</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'eval_metric'</span><span class="p">:</span>       <span class="s1">'RMSE'</span><span class="p">,</span></span>
+<span class="code-line"><span class="p">}</span></span>
+<span class="code-line"><span class="n">ctb_fit_params</span> <span class="o">=</span> <span class="p">{</span></span>
+<span class="code-line">    <span class="s1">'early_stopping_rounds'</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span></span>
+<span class="code-line">    <span class="s1">'verbose'</span><span class="p">:</span> <span class="kc">False</span></span>
+<span class="code-line"><span class="p">}</span></span>
+<span class="code-line"><span class="n">ctb_para</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span></span>
+<span class="code-line"><span class="n">ctb_para</span><span class="p">[</span><span class="s1">'reg_params'</span><span class="p">]</span> <span class="o">=</span> <span class="n">ctb_reg_params</span></span>
+<span class="code-line"><span class="n">ctb_para</span><span class="p">[</span><span class="s1">'fit_params'</span><span class="p">]</span> <span class="o">=</span> <span class="n">ctb_fit_params</span></span>
+<span class="code-line"><span class="n">ctb_para</span><span class="p">[</span><span class="s1">'loss_func'</span> <span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">pred</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mean_squared_error</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">pred</span><span class="p">))</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [17]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="kn">import</span> <span class="nn">lightgbm</span> <span class="k">as</span> <span class="nn">lgb</span></span>
+<span class="code-line"><span class="kn">import</span> <span class="nn">xgboost</span> <span class="k">as</span> <span class="nn">xgb</span></span>
+<span class="code-line"><span class="kn">import</span> <span class="nn">catboost</span> <span class="k">as</span> <span class="nn">ctb</span></span>
+<span class="code-line"><span class="kn">from</span> <span class="nn">hyperopt</span> <span class="kn">import</span> <span class="n">fmin</span><span class="p">,</span> <span class="n">tpe</span><span class="p">,</span> <span class="n">STATUS_OK</span><span class="p">,</span> <span class="n">STATUS_FAIL</span><span class="p">,</span> <span class="n">Trials</span></span>
+<span class="code-line"></span>
+<span class="code-line"></span>
+<span class="code-line"><span class="k">class</span> <span class="nc">HPOpt</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span></span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_train</span><span class="p">,</span> <span class="n">x_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span><span class="p">):</span></span>
+<span class="code-line">        <span class="bp">self</span><span class="o">.</span><span class="n">x_train</span> <span class="o">=</span> <span class="n">x_train</span></span>
+<span class="code-line">        <span class="bp">self</span><span class="o">.</span><span class="n">x_test</span>  <span class="o">=</span> <span class="n">x_test</span></span>
+<span class="code-line">        <span class="bp">self</span><span class="o">.</span><span class="n">y_train</span> <span class="o">=</span> <span class="n">y_train</span></span>
+<span class="code-line">        <span class="bp">self</span><span class="o">.</span><span class="n">y_test</span>  <span class="o">=</span> <span class="n">y_test</span></span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn_name</span><span class="p">,</span> <span class="n">space</span><span class="p">,</span> <span class="n">trials</span><span class="p">,</span> <span class="n">algo</span><span class="p">,</span> <span class="n">max_evals</span><span class="p">):</span></span>
+<span class="code-line">        <span class="n">fn</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn_name</span><span class="p">)</span></span>
+<span class="code-line">        <span class="k">try</span><span class="p">:</span></span>
+<span class="code-line">            <span class="n">result</span> <span class="o">=</span> <span class="n">fmin</span><span class="p">(</span><span class="n">fn</span><span class="o">=</span><span class="n">fn</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="n">space</span><span class="p">,</span> <span class="n">algo</span><span class="o">=</span><span class="n">algo</span><span class="p">,</span> <span class="n">max_evals</span><span class="o">=</span><span class="n">max_evals</span><span class="p">,</span> <span class="n">trials</span><span class="o">=</span><span class="n">trials</span><span class="p">)</span></span>
+<span class="code-line">        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span></span>
+<span class="code-line">            <span class="k">return</span> <span class="p">{</span><span class="s1">'status'</span><span class="p">:</span> <span class="n">STATUS_FAIL</span><span class="p">,</span></span>
+<span class="code-line">                    <span class="s1">'exception'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)}</span></span>
+<span class="code-line">        <span class="k">return</span> <span class="n">result</span><span class="p">,</span> <span class="n">trials</span></span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="k">def</span> <span class="nf">xgb_reg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">para</span><span class="p">):</span></span>
+<span class="code-line">        <span class="n">reg</span> <span class="o">=</span> <span class="n">xgb</span><span class="o">.</span><span class="n">XGBRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">para</span><span class="p">[</span><span class="s1">'reg_params'</span><span class="p">])</span></span>
+<span class="code-line">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_reg</span><span class="p">(</span><span class="n">reg</span><span class="p">,</span> <span class="n">para</span><span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="k">def</span> <span class="nf">lgb_reg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">para</span><span class="p">):</span></span>
+<span class="code-line">        <span class="n">reg</span> <span class="o">=</span> <span class="n">lgb</span><span class="o">.</span><span class="n">LGBMRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">para</span><span class="p">[</span><span class="s1">'reg_params'</span><span class="p">])</span></span>
+<span class="code-line">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_reg</span><span class="p">(</span><span class="n">reg</span><span class="p">,</span> <span class="n">para</span><span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="k">def</span> <span class="nf">ctb_reg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">para</span><span class="p">):</span></span>
+<span class="code-line">        <span class="n">reg</span> <span class="o">=</span> <span class="n">ctb</span><span class="o">.</span><span class="n">CatBoostRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">para</span><span class="p">[</span><span class="s1">'reg_params'</span><span class="p">])</span></span>
+<span class="code-line">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_reg</span><span class="p">(</span><span class="n">reg</span><span class="p">,</span> <span class="n">para</span><span class="p">)</span></span>
+<span class="code-line"></span>
+<span class="code-line">    <span class="k">def</span> <span class="nf">train_reg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reg</span><span class="p">,</span> <span class="n">para</span><span class="p">):</span></span>
+<span class="code-line">        <span class="n">reg</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x_train</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_train</span><span class="p">,</span></span>
+<span class="code-line">                <span class="n">eval_set</span><span class="o">=</span><span class="p">[(</span><span class="bp">self</span><span class="o">.</span><span class="n">x_train</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_train</span><span class="p">),</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x_test</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_test</span><span class="p">)],</span></span>
+<span class="code-line">                <span class="o">**</span><span class="n">para</span><span class="p">[</span><span class="s1">'fit_params'</span><span class="p">])</span></span>
+<span class="code-line">        <span class="n">pred</span> <span class="o">=</span> <span class="n">reg</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x_test</span><span class="p">)</span></span>
+<span class="code-line">        <span class="n">loss</span> <span class="o">=</span> <span class="n">para</span><span class="p">[</span><span class="s1">'loss_func'</span><span class="p">](</span><span class="bp">self</span><span class="o">.</span><span class="n">y_test</span><span class="p">,</span> <span class="n">pred</span><span class="p">)</span></span>
+<span class="code-line">        <span class="k">return</span> <span class="p">{</span><span class="s1">'loss'</span><span class="p">:</span> <span class="n">loss</span><span class="p">,</span> <span class="s1">'status'</span><span class="p">:</span> <span class="n">STATUS_OK</span><span class="p">}</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [29]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">obj</span> <span class="o">=</span> <span class="n">HPOpt</span><span class="p">(</span><span class="n">X_train_prc</span><span class="p">,</span> <span class="n">X_val_prc</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_val</span><span class="p">)</span></span>
+<span class="code-line"><span class="c1"># the dataset is not so complex that it needs tones of evals</span></span>
+<span class="code-line"><span class="n">xgb_opt</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">fn_name</span><span class="o">=</span><span class="s1">'xgb_reg'</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="n">xgb_para</span><span class="p">,</span> <span class="n">trials</span><span class="o">=</span><span class="n">Trials</span><span class="p">(),</span> <span class="n">algo</span><span class="o">=</span><span class="n">tpe</span><span class="o">.</span><span class="n">suggest</span><span class="p">,</span> <span class="n">max_evals</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">lgb_opt</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">fn_name</span><span class="o">=</span><span class="s1">'lgb_reg'</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="n">lgb_para</span><span class="p">,</span> <span class="n">trials</span><span class="o">=</span><span class="n">Trials</span><span class="p">(),</span> <span class="n">algo</span><span class="o">=</span><span class="n">tpe</span><span class="o">.</span><span class="n">suggest</span><span class="p">,</span> <span class="n">max_evals</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">ctb_opt</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">fn_name</span><span class="o">=</span><span class="s1">'ctb_reg'</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="n">ctb_para</span><span class="p">,</span> <span class="n">trials</span><span class="o">=</span><span class="n">Trials</span><span class="p">(),</span> <span class="n">algo</span><span class="o">=</span><span class="n">tpe</span><span class="o">.</span><span class="n">suggest</span><span class="p">,</span> <span class="n">max_evals</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre><span class="code-line">&lt;bound method HPOpt.xgb_reg of &lt;__main__.HPOpt object at 0x000002389EEE8790&gt;&gt;</span>
+<span class="code-line">100%|██████████████████████████████████████████| 50/50 [2:52:02&lt;00:00, 206.44s/trial, best loss: 5.039651774326599e-05]</span>
+<span class="code-line">&lt;bound method HPOpt.lgb_reg of &lt;__main__.HPOpt object at 0x000002389EEE8790&gt;&gt;</span>
+<span class="code-line">100%|████████████████████████████████████████████| 50/50 [02:16&lt;00:00,  2.74s/trial, best loss: 0.00040253329178474475]</span>
+<span class="code-line">&lt;bound method HPOpt.ctb_reg of &lt;__main__.HPOpt object at 0x000002389EEE8790&gt;&gt;</span>
+<span class="code-line">100%|█████████████████████████████████████████████| 50/50 [33:13&lt;00:00, 39.86s/trial, best loss: 9.554781700581013e-06]</span>
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [78]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">xgb_tuned_params</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">xgb_choice_params</span><span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">xgb_choice_params</span> <span class="k">else</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xgb_opt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span></span>
+<span class="code-line"><span class="n">lgb_tuned_params</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">lgb_choice_params</span><span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">lgb_choice_params</span> <span class="k">else</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">lgb_opt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span></span>
+<span class="code-line"><span class="n">ctb_tuned_params</span> <span class="o">=</span> <span class="p">{</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">ctb_choice_params</span><span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">ctb_choice_params</span> <span class="k">else</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">ctb_opt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<p></p>
+<p>After obtaining all the best parameters and training models, the final results look really interesting. 
+</p><div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In [91]:</div>
+<div class="inner_cell">
+<div class="input_area">
+<div class="highlight hl-ipython3"><pre><span class="code-line"><span></span><span class="n">ctb_reg</span> <span class="o">=</span> <span class="n">ctb</span><span class="o">.</span><span class="n">CatBoostRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">ctb_tuned_params</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">ctb_reg</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train_prc</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">eval_set</span><span class="o">=</span><span class="p">[(</span><span class="n">X_train_prc</span><span class="p">,</span> <span class="n">y_train</span><span class="p">),</span> <span class="p">(</span><span class="n">X_val_prc</span><span class="p">,</span> <span class="n">y_val</span><span class="p">)],</span><span class="o">**</span><span class="n">ctb_para</span><span class="p">[</span><span class="s1">'fit_params'</span><span class="p">])</span></span>
+<span class="code-line"><span class="n">y_pred</span> <span class="o">=</span> <span class="n">ctb_reg</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test_prc</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">y_val_s</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">y_test</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">res_row_obj</span> <span class="o">=</span> <span class="n">reg_metrics</span><span class="o">.</span><span class="n">calc_results</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">y_val_s</span><span class="p">,</span><span class="s1">'Hyperopt CTBReg'</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">row</span> <span class="o">=</span> <span class="n">res_row_obj</span><span class="o">.</span><span class="n">calc_results_row</span><span class="p">()</span></span>
+<span class="code-line"><span class="n">results_df</span> <span class="o">=</span> <span class="n">results_df</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">,</span><span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></span>
+<span class="code-line"><span class="n">results_df</span></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="output_wrapper">
+<div class="output">
+<div class="output_area">
+<div class="prompt output_prompt">Out[91]:</div>
+<div class="output_html rendered_html output_subarea output_execute_result">
+<div>
+<style scoped="">
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe table table-striped">
+<thead>
+<tr style="text-align: right;">
+<th></th>
+<th>model</th>
+<th>rmse</th>
+<th>r2</th>
+<th>mape</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th>0</th>
+<td>Baseline</td>
+<td>12.650522</td>
+<td>-7.924584e+29</td>
+<td>23.992520</td>
+</tr>
+<tr>
+<th>1</th>
+<td>defaults XGBReg</td>
+<td>1.773988</td>
+<td>9.805227e-01</td>
+<td>0.135421</td>
+</tr>
+<tr>
+<th>2</th>
+<td>GridSearchCV XGBReg</td>
+<td>1.228305</td>
+<td>9.906251e-01</td>
+<td>0.041728</td>
+</tr>
+<tr>
+<th>3</th>
+<td>Hyperopt XGBReg</td>
+<td>21.725783</td>
+<td>2.558151e-01</td>
+<td>0.248813</td>
+</tr>
+<tr>
+<th>4</th>
+<td>Hyperopt LGBReg</td>
+<td>0.066331</td>
+<td>9.999724e-01</td>
+<td>0.016224</td>
+</tr>
+<tr>
+<th>5</th>
+<td>Hyperopt CTBReg</td>
+<td>0.001424</td>
+<td>1.000000e+00</td>
+<td>0.000392</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<p></p></body>
+  </div>
+  <div class="tag-cloud">
+    <p>
+      <a href="/tag/regression.html">regression</a>
+      <a href="/tag/xgboost.html">xgboost</a>
+      <a href="/tag/catboost.html">catboost</a>
+      <a href="/tag/lightgbm.html">lightgbm</a>
+      <a href="/tag/hyperopt.html">hyperopt</a>
+    </p>
+  </div>
+
+
+  <div class="neighbors">
+    <a class="btn float-left" href="/categorical_encoding_selection.html" title="Selecting categorical encoding: Clickstream price prediction">
+      <i class="fa fa-angle-left"></i> Previous Post
+    </a>
+  </div>
+
+
+
+</article>
+
+    <footer>
+<p>&copy;  </p>
+<p>
+Built with <a href="http://getpelican.com" target="_blank">Pelican</a> using <a href="http://bit.ly/flex-pelican" target="_blank">Flex</a> theme
+</p>    </footer>
+  </main>
+
+
+
+
+<script type="application/ld+json">
+{
+  "@context" : "http://schema.org",
+  "@type" : "Blog",
+  "name": " Fail Safe ",
+  "url" : "",
+  "image": "images/profile.png",
+  "description": "some description"
+}
+</script>
+
+</body>
+</html>
