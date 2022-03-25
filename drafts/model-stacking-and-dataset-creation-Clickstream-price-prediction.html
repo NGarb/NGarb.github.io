@@ -1,0 +1,165 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="HandheldFriendly" content="True" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,400;0,700;1,400&family=Source+Sans+Pro:ital,wght@0,300;0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/theme/stylesheet/style.min.css">
+
+
+    <link id="pygments-light-theme" rel="stylesheet" type="text/css"
+          href="/theme/pygments/monokai.min.css">
+
+
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/fontawesome.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/brands.css">
+  <link rel="stylesheet" type="text/css" href="/theme/font-awesome/css/solid.css">
+
+
+
+
+
+  
+
+
+ 
+
+<meta name="author" content="Nicolle Garber" />
+<meta name="description" content="Experimentation with creation of various datasets and feature selection styles as well as model stacking" />
+<meta name="keywords" content="regression, boruta, feature selection">
+
+
+  <meta property="og:site_name" content="Fail Safe"/>
+  <meta property="og:title" content="Model Stacking and Dataset creation: Clickstream price prediction"/>
+  <meta property="og:description" content="Experimentation with creation of various datasets and feature selection styles as well as model stacking"/>
+  <meta property="og:locale" content="en_US"/>
+  <meta property="og:url" content="/drafts/model-stacking-and-dataset-creation-Clickstream-price-prediction.html"/>
+  <meta property="og:type" content="article"/>
+  <meta property="article:published_time" content="2022-03-14 00:00:00+02:00"/>
+  <meta property="article:modified_time" content=""/>
+  <meta property="article:author" content="/author/nicolle-garber.html">
+  <meta property="article:section" content="regression"/>
+  <meta property="article:tag" content="regression"/>
+  <meta property="article:tag" content="boruta"/>
+  <meta property="article:tag" content="feature selection"/>
+  <meta property="og:image" content="images/profile.png">
+
+  <title>Fail Safe &ndash; Model Stacking and Dataset creation: Clickstream price prediction</title>
+
+</head>
+<body class="light-theme">
+  <aside>
+    <div>
+      <a href="/">
+        <img src="images/profile.png" alt="Data Science Blog" title="Data Science Blog">
+      </a>
+
+      <h1>
+        <a href="/">Data Science Blog</a>
+      </h1>
+
+<p>The FailSafe experiment</p>
+
+
+      <ul class="social">
+          <li>
+            <a  class="sc-linkedin" href="https://www.linkedin.com/in/nicolle-garber" target="_blank">
+              <i class="fab fa-linkedin"></i>
+            </a>
+          </li>
+          <li>
+            <a  class="sc-github" href="https://github.com/NGarb/FailSafe" target="_blank">
+              <i class="fab fa-github"></i>
+            </a>
+          </li>
+          <li>
+            <a  class="sc-medium" href="https://medium.com/@nikigarber" target="_blank">
+              <i class="fab fa-medium"></i>
+            </a>
+          </li>
+      </ul>
+    </div>
+
+  </aside>
+  <main>
+
+
+<article class="single">
+  <header>
+      
+    <h1 id="model-stacking-and-dataset-creation-Clickstream-price-prediction">Model Stacking and Dataset creation: Clickstream price prediction</h1>
+    <p>
+      Posted on Mon 14 March 2022 in <a href="/category/regression.html">regression</a>
+
+        &#8226; 2 min read
+    </p>
+  </header>
+
+
+  <div>
+    </head><body><p>In my <a href="/modeling-with-Hyperopt-Clickstream-price-prediction.html">previous post</a>, I explored my standard approach to predictive modeling. This included very little creative feature engineering as the focus was the modeling and tuning. We got really good results by using the dataset as is with a Catboost model.
+This particular post deals with creative feature engineering partly inspired by this interesting approach used in the <a href="https://github.com/pyduan/amazonaccess">winning Amazon Access Kaggle Solution</a> and partly by some floating glow-bugs in my own brain.
+The objective for this experiment was:</p>
+<ol>
+<li>to implement model stacking with regularization</li>
+<li>to experiment with polynomial feature creation</li>
+<li>to experiment with greedy feature selection approach</li>
+<li>to experiment with the Boruta algorithm</li>
+</ol>
+<p>It will be interesting to see if brute-force feature creation with various feature selection techniques may actually expose some features that are quite telling, that I could add to the existing-base feature set in my standard modeling pipeline. 
+Since we Data Scientists are most often not domain experts, we find relationships that are surprising to us and completely obvious to other knowledgable in the business. Perhaps this process could be expedited by such work. Maybe not! This is all an experiment.</p>
+<h2>Base Dataset</h2>
+<p>As a reminder from the <a href="/clickstream-prediction.html">previous post</a>, project 9 of the series deals with the price prediction of an e-clothing shop based on a few online-shopping attributes. 
+The data and the description can be found at <a href="https://archive.ics.uci.edu/ml/datasets/clickstream+data+for+online+shopping">the UCI repository</a>. </p>
+<h2>Generated Dataset 1</h2>
+<p>This approach is 100% inspired by the winning solution mentioned above. 
+It was left in as a footnote and was not actually used in the competition but I had never seen something like this ever tried before and I wanted to see if this is something I could add to my toolbox. 
+The idea is to generate a coefficient for each value of each feature of the dataset in a logistic regression model.<br/>
+The entire dataset is unrolled or 'sparsified'. Each feature column is One Hot Encoded for the unique values within it (most if not all of the columns in this dataset represent categorical data). 
+These One Hot Encoded binary matrices are then concatenated and in a cross-validation split, sections of rows are trained and the coeficients are slotted into those values.</p>
+  </div>
+  <div class="tag-cloud">
+    <p>
+      <a href="/tag/regression.html">regression</a>
+      <a href="/tag/boruta.html">boruta</a>
+      <a href="/tag/feature-selection.html">feature selection</a>
+    </p>
+  </div>
+
+
+  <div class="neighbors">
+  </div>
+
+
+
+</article>
+
+    <footer>
+<p>&copy;  </p>
+<p>
+Built with <a href="http://getpelican.com" target="_blank">Pelican</a> using <a href="http://bit.ly/flex-pelican" target="_blank">Flex</a> theme
+</p>    </footer>
+  </main>
+
+
+
+
+<script type="application/ld+json">
+{
+  "@context" : "http://schema.org",
+  "@type" : "Blog",
+  "name": " Fail Safe ",
+  "url" : "",
+  "image": "images/profile.png",
+  "description": "some description"
+}
+</script>
+
+</body>
+</html>
